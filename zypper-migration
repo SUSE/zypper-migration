@@ -4,14 +4,36 @@ require 'optparse'
 require "suse/connect"
 
 options = {
-    :migration => 0
+    :verbose => false,
+    :quiet => false,
+    :non_interactive => false,
+    :query => false,
+    :migration => 0,
 }
-OptionParser.new do |opts|
-  opts.banner = "Usage: example.rb [options]"
 
-  opts.on("-v", "--[no-]verbose", "Run verbosely") do |v|
+OptionParser.new do |opts|
+  opts.banner = "Usage: zypper migration [options]"
+
+  opts.on("-v", "--[no-]verbose", "Increase verbosity") do |v|
     options[:verbose] = v
   end
+
+  opts.on("-q", "--[no-]quiet", "Suppress normal output, print only error messages") do |q|
+    options[:quiet] = q
+  end
+
+  opts.on("-n", "--non-interactive", "Do not ask anything, use default answers automatically") do |n|
+    options[:non_interactive] = n
+  end
+
+  opts.on("--query", "Query available migration options and exit") do |q|
+    options[:query] = q
+  end
+
+  opts.on("--migration N", OptionParser::DecimalInteger, "Select migration option N") do |n|
+    options[:migration] = n
+  end
+
 end.parse!
 
 
@@ -35,11 +57,17 @@ connect_products = zypper_product.map {|p| SUSE::Connect::Remote::Product.new(
 migrations = SUSE::Connect::YaST.system_migrations connect_products
 
 if migrations.length == 0
-  print "No migration available\n\n"
+  print "No migration available\n\n" unless options[:quiet]
   exit 0
 end
 
 migration_num = options[:migration]
+if options[:non_interactive] && migration_num == 0
+  # select the first option
+  migration_num = 1
+end
+
+
 while migration_num <= 0 || migration_num > migrations.length do 
   print "Available migrations:\n\n"
   migrations.each_with_index do |migration, index|
@@ -50,6 +78,9 @@ while migration_num <= 0 || migration_num > migrations.length do
     print "\n"
   end
   print "\n"
+  if options[:query]
+    exit 0
+  end
   while migration_num <= 0 || migration_num > migrations.length do
     print "(num/q):"
     choice = gets.chomp 
@@ -60,30 +91,42 @@ end
 
 migration = migrations[migration_num - 1]
 
-print "\nExecuting 'zypper refresh'\n\n"
-system "zypper refresh"
+cmd = "zypper " +
+      (options[:non_interactive] ? "--non-interactive " : "") +
+      (options[:verbose] ? "--verbose " : "") +
+      (options[:quiet] ? "--quiet " : "") +
+      " refresh"
+print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
+exit 1 unless system cmd
 
-print "\nExecuting 'zypper update'\n\n"
-system "zypper update"
+cmd = "zypper " +
+      (options[:non_interactive] ? "--non-interactive " : "") +
+      (options[:verbose] ? "--verbose " : "") +
+      (options[:quiet] ? "--quiet " : "") +
+      " update"
+print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
+exit 1 unless system cmd
 
-migration.each do |new_prod|
-  print "Upgrading product #{new_prod}\n"
-  ret = SUSE::Connect::YaST.upgrade_product new_prod
+migration.each do |p|
+  print "Upgrading product #{p.identifier}/#{p.version}/#{p.arch}\n" unless options[:quiet]
+  service = SUSE::Connect::YaST.upgrade_product p
 
-  if ret[:obsoleted_service_name]
-    print "Removing service #{ret[:obsoleted_service_name]}\n"
-    SUSE::Connect::Zypper::remove_service ret[:obsoleted_service_name]
+  if service[:obsoleted_service_name]
+    print "Removing service #{service[:obsoleted_service_name]}\n" if options[:verbose]
+    SUSE::Connect::Zypper::remove_service service[:obsoleted_service_name]
   end
 
-  print "Adding service #{ret[:name]}\n"
-  SUSE::Connect::System::add_service ret
+  print "Adding service #{service[:name]}\n" if options[:verbose]
+  SUSE::Connect::System::add_service service
 
-   
-#   print "Ret: #{ret.to_yaml}\n"
-   # adjust the services according to the reply
 end
 
-print "\nExecuting 'zypper dup'\n\n"
-system "zypper dup"
+cmd = "zypper " +
+      (options[:non_interactive] ? "--non-interactive " : "") +
+      (options[:verbose] ? "--verbose " : "") +
+      (options[:quiet] ? "--quiet " : "") +
+      " dist-upgrade"
+print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
+exit 1 unless system cmd
 
 
