@@ -1,0 +1,89 @@
+#!/usr/bin/ruby
+
+require 'optparse'
+require "suse/connect"
+
+options = {
+    :migration => 0
+}
+OptionParser.new do |opts|
+  opts.banner = "Usage: example.rb [options]"
+
+  opts.on("-v", "--[no-]verbose", "Run verbosely") do |v|
+    options[:verbose] = v
+  end
+end.parse!
+
+
+zypper_product = SUSE::Connect::Zypper::installed_products
+
+if options[:verbose]
+  print "Installed products:\n"
+  zypper_product.each {|p|
+    printf "  %-25s %s\n", "#{p.identifier}/#{p.version}/#{p.arch}", p.summary
+  }
+  print "\n"
+end
+
+connect_products = zypper_product.map {|p| SUSE::Connect::Remote::Product.new(
+    :arch => p.arch,
+    :identifier => p.identifier,
+    :version => p.version,
+    :release_type => p.release_type
+) }
+
+migrations = SUSE::Connect::YaST.system_migrations connect_products
+
+if migrations.length == 0
+  print "No migration available\n\n"
+  exit 0
+end
+
+migration_num = options[:migration]
+while migration_num <= 0 || migration_num > migrations.length do 
+  print "Available migrations:\n\n"
+  migrations.each_with_index do |migration, index|
+    printf "   %2d |", index + 1
+    migration.each do |p|
+      print " #{p.identifier}/#{p.version}/#{p.arch}"
+    end
+    print "\n"
+  end
+  print "\n"
+  while migration_num <= 0 || migration_num > migrations.length do
+    print "(num/q):"
+    choice = gets.chomp 
+    exit 0 if choice.eql? "q"
+    migration_num = choice.to_i
+  end
+end
+
+migration = migrations[migration_num - 1]
+
+print "\nExecuting 'zypper refresh'\n\n"
+system "zypper refresh"
+
+print "\nExecuting 'zypper update'\n\n"
+system "zypper update"
+
+migration.each do |new_prod|
+  print "Upgrading product #{new_prod}\n"
+  ret = SUSE::Connect::YaST.upgrade_product new_prod
+
+  if ret[:obsoleted_service_name]
+    print "Removing service #{ret[:obsoleted_service_name]}\n"
+    SUSE::Connect::Zypper::remove_service ret[:obsoleted_service_name]
+  end
+
+  print "Adding service #{ret[:name]}\n"
+  SUSE::Connect::System::add_service ret
+
+   
+#   print "Ret: #{ret.to_yaml}\n"
+   # adjust the services according to the reply
+end
+
+print "\nExecuting 'zypper dup'\n\n"
+system "zypper dup"
+
+
