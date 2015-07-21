@@ -19,13 +19,13 @@ Name:           zypper-migration
 Version:        0.1
 Release:        0
 Requires:       rubygem(%{rb_default_ruby_abi}:suse-connect)
-Requires:       zypper >= 1.11.33
+Requires:       zypper >= 1.11.34
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 BuildRequires:  ruby-macros >= 5
-BuildRequires:  zypper >= 1.11.33
+BuildRequires:  zypper >= 1.11.34
 Source1:        zypper-migration
 Summary:        Zypper subcommand for online migration
-License:        LGPL-2.1
+License:        GPL v2 only
 Group:          System/Packages
 BuildArch:      noarch
 

@@ -4,15 +4,28 @@ require 'optparse'
 require "suse/connect"
 
 options = {
+    :allow-vendor-change => false,
     :verbose => false,
     :quiet => false,
     :non_interactive => false,
     :query => false,
     :migration => 0,
+    :repo => [],
+    :from => [],
+    :auto_agree => false,
+    :debug_solver => false,
+    :recommends => true,
+    :replacefiles => false,
+    :details => false,
+    :download => nil
 }
 
 OptionParser.new do |opts|
   opts.banner = "Usage: zypper migration [options]"
+
+  opts.on("-v", "--[no-]allow-vendor-change", "Allow vendor change") do |v|
+    options[:allow-vendor-change] = v
+  end
 
   opts.on("-v", "--[no-]verbose", "Increase verbosity") do |v|
     options[:verbose] = v
@@ -32,6 +45,42 @@ OptionParser.new do |opts|
 
   opts.on("--migration N", OptionParser::DecimalInteger, "Select migration option N") do |n|
     options[:migration] = n
+  end
+
+  opts.on("--from REPO", "Restrict upgrade to specified repository") do |r|
+    options[:from] << r
+  end
+
+  opts.on("-r", "--repo REPO", "Load only the specified repository") do |r|
+    options[:repo] << r
+  end
+
+  opts.on("-l", "--auto-agree-with-licenses", "Automatically say 'yes' to third party license confirmation prompt") do |a|
+    options[:auto_agree] = a
+  end
+
+  opts.on("--debug-solver", "Create solver test case for debugging") do |a|
+    options[:debug_solver] = a
+  end
+
+  opts.on("--[no-]recommends", "Install also recommended packages") do |a|
+    options[:recommends] = a
+  end
+
+  opts.on("--replacefiles", "Install the packages even if they replace files from other packages") do |a|
+    options[:replacefiles] = a
+  end
+
+  opts.on("--details", "Show the detailed installation summary") do |a|
+    options[:details] = a
+  end
+
+  opts.on("--download MODE", ["only", "in-advance", "in-heaps", "as-needed"],"Set the download-install mode") do |a|
+    options[:download] = a
+  end
+
+  opts.on("--download-only", "Only download the packages, do not install") do |d|
+    options[:download] = "only" if d
   end
 
 end.parse!
@@ -122,9 +171,18 @@ migration.each do |p|
 end
 
 cmd = "zypper " +
+      (options[:allow-vendor-change] ? "--allow-vendor-change " : "--no-allow-vendor-change ") +
       (options[:non_interactive] ? "--non-interactive " : "") +
       (options[:verbose] ? "--verbose " : "") +
       (options[:quiet] ? "--quiet " : "") +
+      (options[:auto_agree] ? "--auto-agree-with-licenses " : "") +
+      (options[:debug_solver] ? "--debug-solver " : "") +
+      (options[:recommends] ? "--recommends " : "--no-recommends ") +
+      (options[:replacefiles] ? "--replacefiles " : "") +
+      (options[:details] ? "--details " : "") +
+      (options[:download] ? "--download #{options[:download]} " : "") +
+      (options[:repo].map { |r| "--repo #{r}" }.join(" ")) +
+      (options[:from].map { |r| "--from #{r}" }.join(" ")) +
       " dist-upgrade"
 print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
 exit 1 unless system cmd
