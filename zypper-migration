@@ -4,7 +4,7 @@ require 'optparse'
 require "suse/connect"
 
 options = {
-    :allow-vendor-change => false,
+    :allow_vendor_change => false,
     :verbose => false,
     :quiet => false,
     :non_interactive => false,
@@ -24,7 +24,7 @@ OptionParser.new do |opts|
   opts.banner = "Usage: zypper migration [options]"
 
   opts.on("-v", "--[no-]allow-vendor-change", "Allow vendor change") do |v|
-    options[:allow-vendor-change] = v
+    options[:allow_vendor_change] = v
   end
 
   opts.on("-v", "--[no-]verbose", "Increase verbosity") do |v|
@@ -163,7 +163,7 @@ migration.each do |p|
 end
 
 cmd = "zypper " +
-      (options[:allow-vendor-change] ? "--allow-vendor-change " : "--no-allow-vendor-change ") +
+      (options[:allow_vendor_change] ? "--allow-vendor-change " : "--no-allow-vendor-change ") +
       (options[:non_interactive] ? "--non-interactive " : "") +
       (options[:verbose] ? "--verbose " : "") +
       (options[:quiet] ? "--quiet " : "") +
