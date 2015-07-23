@@ -86,24 +86,16 @@ OptionParser.new do |opts|
 end.parse!
 
 
-zypper_product = SUSE::Connect::Zypper::installed_products
-
+products = SUSE::Connect::Migration::system_products
 if options[:verbose]
   print "Installed products:\n"
-  zypper_product.each {|p|
+  products.each {|p|
     printf "  %-25s %s\n", "#{p.identifier}/#{p.version}/#{p.arch}", p.summary
   }
   print "\n"
 end
 
-connect_products = zypper_product.map {|p| SUSE::Connect::Remote::Product.new(
-    :arch => p.arch,
-    :identifier => p.identifier,
-    :version => p.version,
-    :release_type => p.release_type
-) }
-
-migrations = SUSE::Connect::YaST.system_migrations connect_products
+migrations = SUSE::Connect::YaST.system_migrations products
 
 if migrations.length == 0
   print "No migration available\n\n" unless options[:quiet]
@@ -162,11 +154,11 @@ migration.each do |p|
 
   if service[:obsoleted_service_name]
     print "Removing service #{service[:obsoleted_service_name]}\n" if options[:verbose]
-    SUSE::Connect::Zypper::remove_service service[:obsoleted_service_name]
+    SUSE::Connect::Migration::remove_service service[:obsoleted_service_name]
   end
 
   print "Adding service #{service[:name]}\n" if options[:verbose]
-  SUSE::Connect::System::add_service service
+  SUSE::Connect::Migration::add_service service
 
 end
 
