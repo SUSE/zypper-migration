@@ -15,7 +15,7 @@
 # Please submit bugfixes or comments via http://bugs.opensuse.org/
 #
 
-Name:           zypper-migration
+Name:           zypper-migration-plugin
 Version:        0.1
 Release:        0
 Requires:       rubygem(%{rb_default_ruby_abi}:suse-connect)
@@ -25,12 +25,12 @@ BuildRequires:  ruby-macros >= 5
 BuildRequires:  zypper >= 1.11.34
 Source1:        zypper-migration
 Summary:        Zypper subcommand for online migration
-License:        GPL v2 only
+License:        GPL-2.0
 Group:          System/Packages
 BuildArch:      noarch
 
 %description
-.
+Zypper subcommand for online migration.
 
 %prep
 

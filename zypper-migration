@@ -158,15 +158,16 @@ migration.each do |p|
   end
 
   print "Adding service #{service[:name]}\n" if options[:verbose]
-  SUSE::Connect::Migration::add_service service
+  SUSE::Connect::Migration::add_service service[:url], service[:name]
 
 end
 
 cmd = "zypper " +
-      (options[:allow_vendor_change] ? "--allow-vendor-change " : "--no-allow-vendor-change ") +
       (options[:non_interactive] ? "--non-interactive " : "") +
       (options[:verbose] ? "--verbose " : "") +
       (options[:quiet] ? "--quiet " : "") +
+      " dist-upgrade " +
+      (options[:allow_vendor_change] ? "--allow-vendor-change " : "--no-allow-vendor-change ") +
       (options[:auto_agree] ? "--auto-agree-with-licenses " : "") +
       (options[:debug_solver] ? "--debug-solver " : "") +
       (options[:recommends] ? "--recommends " : "--no-recommends ") +
@@ -174,8 +175,7 @@ cmd = "zypper " +
       (options[:details] ? "--details " : "") +
       (options[:download] ? "--download #{options[:download]} " : "") +
       (options[:repo].map { |r| "--repo #{r}" }.join(" ")) +
-      (options[:from].map { |r| "--from #{r}" }.join(" ")) +
-      " dist-upgrade"
+      (options[:from].map { |r| "--from #{r}" }.join(" "))
 print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
 exit 1 unless system cmd
 
