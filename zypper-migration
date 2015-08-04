@@ -3,6 +3,33 @@
 require 'optparse'
 require "suse/connect"
 
+class ProductVersion
+  include Comparable
+  attr :v
+
+  def cmp_array(a1, a2)
+    return 0 if a1.length == 0 && a2.length == 0
+    first1 = a1.length > 0 ? a1.shift : "0"
+    first2 = a2.length > 0 ? a2.shift : "0"
+
+    cmp = first1.to_i <=> first2.to_i
+    cmp = cmp_array(a1, a2) if cmp == 0
+    return cmp
+  end
+
+  def <=>(v2)
+    a_ver, a_rel = @v.split("-")
+    b_ver, b_rel = v2.v.split("-")
+    cmp_array(a_ver.split('.'), b_ver.split('.'))
+  end
+  def initialize(v)
+    @v = v
+  end
+  def inspect
+    @v
+  end
+end
+
 options = {
     :allow_vendor_change => false,
     :verbose => false,
@@ -41,6 +68,10 @@ OptionParser.new do |opts|
 
   opts.on("--query", "Query available migration options and exit") do |q|
     options[:query] = q
+  end
+
+  opts.on("--disable-repos", "Disable obsolete repositories without asking") do |d|
+    options[:disable_repos] = d
   end
 
   opts.on("--migration N", OptionParser::DecimalInteger, "Select migration option N") do |n|
@@ -123,9 +154,9 @@ while migration_num <= 0 || migration_num > migrations.length do
     exit 0
   end
   while migration_num <= 0 || migration_num > migrations.length do
-    print "(num/q):"
+    print "[num/q]: "
     choice = gets.chomp 
-    exit 0 if choice.eql? "q"
+    exit 0 if choice.eql?("q") || choice.eql?("Q")
     migration_num = choice.to_i
   end
 end
@@ -155,6 +186,32 @@ migration.each do |p|
   if service[:obsoleted_service_name]
     print "Removing service #{service[:obsoleted_service_name]}\n" if options[:verbose]
     SUSE::Connect::Migration::remove_service service[:obsoleted_service_name]
+  end
+
+  SUSE::Connect::Migration::find_products(p.identifier).each do |available_product|
+    # filter out "(System Packages)" and already disabled repos
+    next unless SUSE::Connect::Migration::repositories.detect { |r| r[:name].eql?(available_product[:repository]) && r[:enabled] != 0 }
+    if ProductVersion.new(available_product[:edition]) < ProductVersion.new(p.version)
+      print "Found obsolete repository #{available_product[:repository]} containing product #{available_product[:name]} #{available_product[:edition]}" unless options[:quiet]
+      if options[:non_interactive] || options[:disable_repos]
+        print "... disabling\n" unless options[:quiet]
+        SUSE::Connect::Migration::disable_repository available_product[:repository]
+      else
+        while true
+          print "\nDisable obsolete repository #{available_product[:repository]} [y/n] (y): "
+          choice = gets.chomp
+          if choice.eql?('n') || choice.eql?('N')
+            print "\n"
+            break
+          end
+          if  choice.eql?('y') || choice.eql?('Y')|| choice.eql?('')
+            print "... disabling\n"
+            SUSE::Connect::Migration::disable_repository available_product[:repository]
+            break
+          end
+        end
+      end
+    end
   end
 
   print "Adding service #{service[:name]}\n" if options[:verbose]
