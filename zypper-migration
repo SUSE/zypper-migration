@@ -126,7 +126,12 @@ if options[:verbose]
   print "\n"
 end
 
-migrations = SUSE::Connect::YaST.system_migrations products
+begin
+  migrations = SUSE::Connect::YaST.system_migrations products
+rescue SUSE::Connect::ApiError
+  print "API error: #{$!.message}\n"
+  exit 1
+end
 
 if migrations.length == 0
   print "No migration available\n\n" unless options[:quiet]
