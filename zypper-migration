@@ -203,7 +203,7 @@ migration.each do |p|
     # filter out "(System Packages)" and already disabled repos
     next unless SUSE::Connect::Migration::repositories.detect { |r| r[:name].eql?(available_product[:repository]) && r[:enabled] != 0 }
     if ProductVersion.new(available_product[:edition]) < ProductVersion.new(p.version)
-      print "Found obsolete repository #{available_product[:repository]} containing product #{available_product[:name]} #{available_product[:edition]}" unless options[:quiet]
+      print "Found obsolete repository #{available_product[:repository]}" unless options[:quiet]
       if options[:non_interactive] || options[:disable_repos]
         print "... disabling\n" unless options[:quiet]
         SUSE::Connect::Migration::disable_repository available_product[:repository]
