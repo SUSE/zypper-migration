@@ -214,7 +214,7 @@ cmd = "zypper " +
 print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
 exit 1 unless system cmd
 
-cmd = "snapper create --type pre --print-number --description 'pre migration'"
+cmd = "snapper create --type pre --print-number --description 'before online migration'"
 print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
 pre_snapshot_num = `#{cmd}`.to_i
 
@@ -290,7 +290,7 @@ print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
 result = system cmd
 
 if pre_snapshot_num > 0
-  cmd = "snapper create --type post --pre-number #{pre_snapshot_num} --print-number --description 'post migration'"
+  cmd = "snapper create --type post --pre-number #{pre_snapshot_num} --print-number --description 'after online migration'"
   print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
   post_snapshot_num = `#{cmd}`.to_i
 end
