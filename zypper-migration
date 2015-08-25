@@ -127,10 +127,40 @@ if options[:verbose]
 end
 
 begin
-  migrations = SUSE::Connect::YaST.system_migrations products
+  migrations_all = SUSE::Connect::YaST.system_migrations products
 rescue SUSE::Connect::ApiError
   print "API error: #{$!.message}\n"
   exit 1
+end
+
+migrations = Array.new
+migrations_unavailable = Array.new
+migrations_all.each do |migration|
+  migr_available = true
+  migration.each do |p|
+    available = !defined?(p.available) || p.available
+    if !available
+      migr_available = false
+      break
+    end
+  end
+  if migr_available
+    migrations << migration
+  else
+    migrations_unavailable << migration
+  end
+end
+
+if migrations_unavailable.length > 0 && !options[:quiet]
+  print "Unavailable migrations (product is not mirrored):\n"
+  migrations_unavailable.each do |migration|
+    migration.each do |p|
+      available = !defined?(p.available) || p.available
+      print " #{p.identifier}/#{p.version}/#{p.arch}" + (available ? "" : "(not available)")
+    end
+    print "\n"
+  end
+  print "\n"
 end
 
 if migrations.length == 0
