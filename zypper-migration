@@ -220,49 +220,53 @@ pre_snapshot_num = `#{cmd}`.to_i
 
 base_product_version = nil # unknown yet
 
-migration.each do |p|
-  print "Upgrading product #{p.identifier}/#{p.version}/#{p.arch}\n" unless options[:quiet]
-  service = SUSE::Connect::YaST.upgrade_product p
+begin
+  migration.each do |p|
+    print "Upgrading product #{p.identifier}/#{p.version}/#{p.arch}\n" unless options[:quiet]
+    service = SUSE::Connect::YaST.upgrade_product p
 
-  if service[:obsoleted_service_name]
-    print "Removing service #{service[:obsoleted_service_name]}\n" if options[:verbose]
-    SUSE::Connect::Migration::remove_service service[:obsoleted_service_name]
-  end
+    if service[:obsoleted_service_name]
+      print "Removing service #{service[:obsoleted_service_name]}\n" if options[:verbose]
+      SUSE::Connect::Migration::remove_service service[:obsoleted_service_name]
+    end
 
-  SUSE::Connect::Migration::find_products(p.identifier).each do |available_product|
-    # filter out "(System Packages)" and already disabled repos
-    next unless SUSE::Connect::Migration::repositories.detect { |r| r[:name].eql?(available_product[:repository]) && r[:enabled] != 0 }
-    if ProductVersion.new(available_product[:edition]) < ProductVersion.new(p.version)
-      print "Found obsolete repository #{available_product[:repository]}" unless options[:quiet]
-      if options[:non_interactive] || options[:disable_repos]
-        print "... disabling\n" unless options[:quiet]
-        SUSE::Connect::Migration::disable_repository available_product[:repository]
-      else
-        while true
-          print "\nDisable obsolete repository #{available_product[:repository]} [y/n] (y): "
-          choice = gets.chomp
-          if choice.eql?('n') || choice.eql?('N')
-            print "\n"
-            break
-          end
-          if  choice.eql?('y') || choice.eql?('Y')|| choice.eql?('')
-            print "... disabling\n"
-            SUSE::Connect::Migration::disable_repository available_product[:repository]
-            break
+    SUSE::Connect::Migration::find_products(p.identifier).each do |available_product|
+      # filter out "(System Packages)" and already disabled repos
+      next unless SUSE::Connect::Migration::repositories.detect { |r| r[:name].eql?(available_product[:repository]) && r[:enabled] != 0 }
+      if ProductVersion.new(available_product[:edition]) < ProductVersion.new(p.version)
+        print "Found obsolete repository #{available_product[:repository]}" unless options[:quiet]
+        if options[:non_interactive] || options[:disable_repos]
+          print "... disabling\n" unless options[:quiet]
+          SUSE::Connect::Migration::disable_repository available_product[:repository]
+        else
+          while true
+            print "\nDisable obsolete repository #{available_product[:repository]} [y/n] (y): "
+            choice = gets.chomp
+            if choice.eql?('n') || choice.eql?('N')
+              print "\n"
+              break
+            end
+            if  choice.eql?('y') || choice.eql?('Y')|| choice.eql?('')
+              print "... disabling\n"
+              SUSE::Connect::Migration::disable_repository available_product[:repository]
+              break
+            end
           end
         end
       end
     end
+
+    print "Adding service #{service[:name]}\n" if options[:verbose]
+    SUSE::Connect::Migration::add_service service[:url], service[:name]
+
+    # store the base product version
+    if p.base
+      base_product_version = p.version
+    end
   end
-
-  print "Adding service #{service[:name]}\n" if options[:verbose]
-  SUSE::Connect::Migration::add_service service[:url], service[:name]
-
-  # store the base product version
-  if p.base
-    base_product_version = p.version
-  end
-
+rescue SUSE::Connect::ApiError
+  print "API error: #{$!.message}\n"
+  exit 1
 end
 
 cmd = "zypper " +
