@@ -163,17 +163,20 @@ rescue SUSE::Connect::ApiError
   exit 1
 end
 
+#preprocess the migrations lists
 migrations = Array.new
 migrations_unavailable = Array.new
 migrations_all.each do |migration|
   migr_available = true
   migration.each do |p|
-    available = !defined?(p.available) || p.available
-    if !available
+    p.available = !defined?(p.available) || p.available
+    p.already_installed = !! system_products.detect { |ip| ip.identifier.eql?(p.identifier) && ip.version.eql?(p.version) && ip.arch.eql?(p.arch) }
+    if !p.available
       migr_available = false
-      break
     end
   end
+  # put already_installed products last and base products first
+  migration = migration.sort_by { |p| [p.already_installed ? 1 : 0, p.base ? 0 : 1] }
   if migr_available
     migrations << migration
   else
@@ -182,12 +185,10 @@ migrations_all.each do |migration|
 end
 
 if migrations_unavailable.length > 0 && !options[:quiet]
-  print "Unavailable migrations (product is not mirrored):\n"
+  print "Unavailable migrations (product is not mirrored):\n\n"
   migrations_unavailable.each do |migration|
     migration.each do |p|
-      available = !defined?(p.available) || p.available
-      installed = system_products.detect { |ip| ip.identifier.eql?(p.identifier) && ip.version.eql?(p.version) && ip.arch.eql?(p.arch) }
-      print " #{p.identifier}/#{p.version}/#{p.arch}" + (available ? "" : "(not available)") + (installed ? "(already installed)" : "")
+      print "        #{p.friendly_name}" + (p.available ? "" : " (not available)") + (p.already_installed ? " (already installed)" : "") + "\n"
     end
     print "\n"
   end
@@ -211,8 +212,7 @@ while migration_num <= 0 || migration_num > migrations.length do
   migrations.each_with_index do |migration, index|
     printf "   %2d |", index + 1
     migration.each do |p|
-      installed = system_products.detect { |ip| ip.identifier.eql?(p.identifier) && ip.version.eql?(p.version) && ip.arch.eql?(p.arch) }
-      print " #{p.identifier}/#{p.version}/#{p.arch}" + (installed ? "(already installed)" : "")
+      print " #{p.friendly_name}" + (p.already_installed ? " (already installed)" : "") + "\n       "
     end
     print "\n"
   end
@@ -239,7 +239,7 @@ base_product_version = nil # unknown yet
 
 begin
   migration.each do |p|
-    print "Upgrading product #{p.identifier}/#{p.version}/#{p.arch}\n" unless options[:quiet]
+    print "Upgrading product #{p.friendly_name}\n" unless options[:quiet]
     service = SUSE::Connect::YaST.upgrade_product p
 
     if service[:obsoleted_service_name]
