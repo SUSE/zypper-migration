@@ -47,6 +47,8 @@ options = {
     :download => nil
 }
 
+save_argv = Array.new(ARGV)
+
 OptionParser.new do |opts|
   opts.banner = "Usage: zypper migration [options]"
 
@@ -115,6 +117,34 @@ OptionParser.new do |opts|
   end
 
 end.parse!
+
+cmd = "zypper " +
+      (options[:non_interactive] ? "--non-interactive " : "") +
+      (options[:verbose] ? "--verbose " : "") +
+      (options[:quiet] ? "--quiet " : "") +
+      " patch-check"
+print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
+if !system cmd
+  if $?.exitstatus >= 100
+    # install pending updates and restart
+    cmd = "zypper " +
+          (options[:non_interactive] ? "--non-interactive " : "") +
+          (options[:verbose] ? "--verbose " : "") +
+          (options[:quiet] ? "--quiet " : "") +
+          " patch"
+    print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
+    exit 1 unless system cmd
+
+    # stop infinite restarting
+    # check that the patches were really installed
+    exit 1 unless system "zypper --non-interactive --quiet patch-check > /dev/null"
+
+    print "\nRestarting the migration script...\n" unless options[:quiet]
+    exec $0, *save_argv
+  end
+  exit 1
+end
+print "\n" unless options[:quiet]
 
 
 system_products = SUSE::Connect::Migration::system_products
@@ -200,21 +230,6 @@ end
 
 migration = migrations[migration_num - 1]
 
-cmd = "zypper " +
-      (options[:non_interactive] ? "--non-interactive " : "") +
-      (options[:verbose] ? "--verbose " : "") +
-      (options[:quiet] ? "--quiet " : "") +
-      " refresh"
-print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
-exit 1 unless system cmd
-
-cmd = "zypper " +
-      (options[:non_interactive] ? "--non-interactive " : "") +
-      (options[:verbose] ? "--verbose " : "") +
-      (options[:quiet] ? "--quiet " : "") +
-      " update"
-print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
-exit 1 unless system cmd
 
 cmd = "snapper create --type pre --print-number --description 'before online migration'"
 print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
