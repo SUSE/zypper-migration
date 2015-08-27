@@ -117,17 +117,17 @@ OptionParser.new do |opts|
 end.parse!
 
 
-products = SUSE::Connect::Migration::system_products
+system_products = SUSE::Connect::Migration::system_products
 if options[:verbose]
   print "Installed products:\n"
-  products.each {|p|
+  system_products.each {|p|
     printf "  %-25s %s\n", "#{p.identifier}/#{p.version}/#{p.arch}", p.summary
   }
   print "\n"
 end
 
 begin
-  migrations_all = SUSE::Connect::YaST.system_migrations products
+  migrations_all = SUSE::Connect::YaST.system_migrations system_products
 rescue SUSE::Connect::ApiError
   print "API error: #{$!.message}\n"
   exit 1
@@ -156,7 +156,8 @@ if migrations_unavailable.length > 0 && !options[:quiet]
   migrations_unavailable.each do |migration|
     migration.each do |p|
       available = !defined?(p.available) || p.available
-      print " #{p.identifier}/#{p.version}/#{p.arch}" + (available ? "" : "(not available)")
+      installed = system_products.detect { |ip| ip.identifier.eql?(p.identifier) && ip.version.eql?(p.version) && ip.arch.eql?(p.arch) }
+      print " #{p.identifier}/#{p.version}/#{p.arch}" + (available ? "" : "(not available)") + (installed ? "(already installed)" : "")
     end
     print "\n"
   end
@@ -180,7 +181,8 @@ while migration_num <= 0 || migration_num > migrations.length do
   migrations.each_with_index do |migration, index|
     printf "   %2d |", index + 1
     migration.each do |p|
-      print " #{p.identifier}/#{p.version}/#{p.arch}"
+      installed = system_products.detect { |ip| ip.identifier.eql?(p.identifier) && ip.version.eql?(p.version) && ip.arch.eql?(p.arch) }
+      print " #{p.identifier}/#{p.version}/#{p.arch}" + (installed ? "(already installed)" : "")
     end
     print "\n"
   end
