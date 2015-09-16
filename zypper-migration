@@ -132,12 +132,13 @@ if !system cmd
           (options[:verbose] ? "--verbose " : "") +
           (options[:quiet] ? "--quiet " : "") +
           " patch --updatestack-only"
-    print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
-    exit 1 unless system cmd
 
     # stop infinite restarting
     # check that the patches were really installed
-    exit 1 unless system "zypper --non-interactive --quiet patch-check --updatestack-only > /dev/null"
+    if ! system "zypper --non-interactive --quiet patch-check --updatestack-only > /dev/null"
+      print "patch failed, exiting\n"
+      exit 1
+    end
 
     print "\nRestarting the migration script...\n" unless options[:quiet]
     exec $0, *save_argv
@@ -230,6 +231,8 @@ end
 
 migration = migrations[migration_num - 1]
 
+# this must be done before snapshot, SCC rollback depends on it
+system_products.each{|ident| SUSE::Connect::Migration.install_release_package(ident.identifier)}
 
 cmd = "snapper create --type pre --print-number --description 'before online migration'"
 print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
@@ -237,6 +240,7 @@ pre_snapshot_num = `#{cmd}`.to_i
 
 base_product_version = nil # unknown yet
 
+result = false
 begin
   migration.each do |p|
     print "Upgrading product #{p.friendly_name}\n" unless options[:quiet]
@@ -281,39 +285,49 @@ begin
       base_product_version = p.version
     end
   end
+
+  cmd = "zypper " +
+        (base_product_version ? "--releasever #{base_product_version} " : "") +
+        "ref -f"
+  print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
+  result = system cmd
+
+  cmd = "zypper " +
+        (base_product_version ? "--releasever #{base_product_version} " : "") +
+        (options[:non_interactive] ? "--non-interactive " : "") +
+        (options[:verbose] ? "--verbose " : "") +
+        (options[:quiet] ? "--quiet " : "") +
+        " dist-upgrade " +
+        (options[:allow_vendor_change] ? "--allow-vendor-change " : "--no-allow-vendor-change ") +
+        (options[:auto_agree] ? "--auto-agree-with-licenses " : "") +
+        (options[:debug_solver] ? "--debug-solver " : "") +
+        (options[:recommends] ? "--recommends " : "--no-recommends ") +
+        (options[:replacefiles] ? "--replacefiles " : "") +
+        (options[:details] ? "--details " : "") +
+        (options[:download] ? "--download #{options[:download]} " : "") +
+        (options[:repo].map { |r| "--repo #{r}" }.join(" ")) +
+        (options[:from].map { |r| "--from #{r}" }.join(" "))
+  print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
+  result = system cmd
+
 rescue SUSE::Connect::ApiError
   print "API error: #{$!.message}\n"
-  exit 1
 end
-
-cmd = "zypper " +
-      (base_product_version ? "--releasever #{base_product_version} " : "") +
-      "ref -f"
-print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
-result = system cmd
-
-cmd = "zypper " +
-      (base_product_version ? "--releasever #{base_product_version} " : "") +
-      (options[:non_interactive] ? "--non-interactive " : "") +
-      (options[:verbose] ? "--verbose " : "") +
-      (options[:quiet] ? "--quiet " : "") +
-      " dist-upgrade " +
-      (options[:allow_vendor_change] ? "--allow-vendor-change " : "--no-allow-vendor-change ") +
-      (options[:auto_agree] ? "--auto-agree-with-licenses " : "") +
-      (options[:debug_solver] ? "--debug-solver " : "") +
-      (options[:recommends] ? "--recommends " : "--no-recommends ") +
-      (options[:replacefiles] ? "--replacefiles " : "") +
-      (options[:details] ? "--details " : "") +
-      (options[:download] ? "--download #{options[:download]} " : "") +
-      (options[:repo].map { |r| "--repo #{r}" }.join(" ")) +
-      (options[:from].map { |r| "--from #{r}" }.join(" "))
-print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
-result = system cmd
 
 if pre_snapshot_num > 0
   cmd = "snapper create --type post --pre-number #{pre_snapshot_num} --print-number --description 'after online migration'"
   print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
   post_snapshot_num = `#{cmd}`.to_i
+  if !result && post_snapshot_num > 0
+    cmd = "snapper undochange #{pre_snapshot_num}..#{post_snapshot_num}"
+    print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
+    system cmd
+  end
+end
+
+if !result
+  print "Migration failed, trying rollback\n" unless options[:quiet]
+  SUSE::Connect::Migration.rollback
 end
 
 exit 1 unless result
