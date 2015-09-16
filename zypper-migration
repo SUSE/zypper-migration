@@ -131,11 +131,11 @@ if !system cmd
           (options[:non_interactive] ? "--non-interactive " : "") +
           (options[:verbose] ? "--verbose " : "") +
           (options[:quiet] ? "--quiet " : "") +
-          " patch --updatestack-only"
+          " --no-refresh patch --updatestack-only"
 
     # stop infinite restarting
     # check that the patches were really installed
-    if ! system "zypper --non-interactive --quiet patch-check --updatestack-only > /dev/null"
+    if ! system "zypper --non-interactive --quiet --no-refresh patch-check --updatestack-only > /dev/null"
       print "patch failed, exiting\n"
       exit 1
     end
@@ -297,6 +297,7 @@ begin
         (options[:non_interactive] ? "--non-interactive " : "") +
         (options[:verbose] ? "--verbose " : "") +
         (options[:quiet] ? "--quiet " : "") +
+        " --no-refresh " +
         " dist-upgrade " +
         (options[:allow_vendor_change] ? "--allow-vendor-change " : "--no-allow-vendor-change ") +
         (options[:auto_agree] ? "--auto-agree-with-licenses " : "") +
