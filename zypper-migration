@@ -47,6 +47,8 @@ options = {
     :download => nil
 }
 
+STDOUT.sync = true
+
 save_argv = Array.new(ARGV)
 
 OptionParser.new do |opts|
