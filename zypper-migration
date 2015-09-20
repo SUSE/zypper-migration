@@ -298,6 +298,8 @@ begin
   print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
   result = system cmd
 
+  raise "Refresh of repositories failed" unless result
+
   cmd = "zypper " +
         (base_product_version ? "--releasever #{base_product_version} " : "") +
         (options[:non_interactive] ? "--non-interactive " : "") +
@@ -322,20 +324,43 @@ rescue => e
   result = false
 end
 
+print "\nMigration failed\n\n" unless result || options[:quiet]
+
 if pre_snapshot_num > 0
   cmd = "snapper create --type post --pre-number #{pre_snapshot_num} --print-number --description 'after online migration'"
   print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
   post_snapshot_num = `#{cmd}`.to_i
   if !result && post_snapshot_num > 0
     cmd = "snapper undochange #{pre_snapshot_num}..#{post_snapshot_num}"
-    print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
-    system cmd
+    fs_rollback = true # enabled by default
+    unless options[:non_interactive]
+      while true
+        print "Perform filesystem rollback with '#{cmd}' [y/n] (y): "
+        choice = gets.chomp
+        print "\n"
+        if choice.eql?('n') || choice.eql?('N')
+          fs_rollback = false
+          break
+        end
+        if choice.eql?('y') || choice.eql?('Y')|| choice.eql?('')
+          break
+        end
+      end
+    end
+    if fs_rollback
+      print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
+      system cmd
+    end
   end
 end
 
 if !result
-  print "Migration failed, trying rollback\n" unless options[:quiet]
-  SUSE::Connect::Migration.rollback
+  print "\nPerforming repository rollback\n" unless options[:quiet]
+  begin
+    SUSE::Connect::Migration.rollback
+  rescue => e
+    print "SUSEConnect error: #{e.class}: #{e.message}\n"
+  end
 end
 
 exit 1 unless result
