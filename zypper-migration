@@ -254,6 +254,8 @@ cmd = "snapper create --type pre --print-number --description 'before online mig
 print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
 pre_snapshot_num = `#{cmd}`.to_i
 
+new_services = Array.new
+
 base_product_version = nil # unknown yet
 
 result = false
@@ -295,6 +297,7 @@ begin
 
     print "Adding service #{service[:name]}\n" if options[:verbose]
     SUSE::Connect::Migration::add_service service[:url], service[:name]
+    new_services << service
 
     # store the base product version
     if p.base
@@ -336,13 +339,14 @@ end
 
 print "\nMigration failed\n\n" unless result || options[:quiet]
 
+fs_rollback = false
 if pre_snapshot_num > 0
   cmd = "snapper create --type post --pre-number #{pre_snapshot_num} --print-number --description 'after online migration'"
   print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
   post_snapshot_num = `#{cmd}`.to_i
   if !result && post_snapshot_num > 0
     cmd = "snapper undochange #{pre_snapshot_num}..#{post_snapshot_num}"
-    fs_rollback = true # enabled by default
+    fs_rollback = true # enabled by default if we have snapshots
     unless options[:non_interactive]
       while true
         print "Perform filesystem rollback with '#{cmd}' [y/n] (y): "
@@ -366,6 +370,12 @@ end
 
 if !result
   print "\nPerforming repository rollback\n" unless options[:quiet]
+  if !fs_rollback
+    # no fs rollback - remove newly added services
+    new_services.each do |service|
+      SUSE::Connect::Migration::remove_service service[:name]
+    end
+  end
   begin
     SUSE::Connect::Migration.rollback
   rescue => e
