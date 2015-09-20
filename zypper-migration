@@ -124,7 +124,15 @@ cmd = "zypper " +
       (options[:non_interactive] ? "--non-interactive " : "") +
       (options[:verbose] ? "--verbose " : "") +
       (options[:quiet] ? "--quiet " : "") +
-      " patch-check --updatestack-only"
+      " refresh"
+print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
+system cmd
+
+cmd = "zypper " +
+      (options[:non_interactive] ? "--non-interactive " : "") +
+      (options[:verbose] ? "--verbose " : "") +
+      (options[:quiet] ? "--quiet " : "") +
+      " --no-refresh patch-check --updatestack-only"
 print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
 if !system cmd
   if $?.exitstatus >= 100
@@ -134,6 +142,8 @@ if !system cmd
           (options[:verbose] ? "--verbose " : "") +
           (options[:quiet] ? "--quiet " : "") +
           " --no-refresh patch --updatestack-only"
+    print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
+    system cmd
 
     # stop infinite restarting
     # check that the patches were really installed
