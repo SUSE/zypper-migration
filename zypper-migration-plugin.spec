@@ -16,7 +16,7 @@
 #
 
 Name:           zypper-migration-plugin
-Version:        0.5
+Version:        0.6
 Release:        0
 Requires:       rubygem(%{rb_default_ruby_abi}:suse-connect) >= 0.2.20
 Requires:       zypper >= 1.11.36
