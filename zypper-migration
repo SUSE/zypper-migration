@@ -288,6 +288,8 @@ cmd = "snapper create --type pre --print-number --description 'before online mig
 print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
 pre_snapshot_num = `#{cmd}`.to_i
 
+ENV['DISABLE_SNAPPER_ZYPP_PLUGIN'] = '1'
+
 base_product_version = nil # unknown yet
 
 result = false
