@@ -157,7 +157,10 @@ cmd = "zypper " +
       (options[:quiet] ? "--quiet " : "") +
       " refresh"
 print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
-system cmd
+if !system cmd
+  print print "repository refresh failed, exiting\n"
+  exit 1
+end
 
 cmd = "zypper " +
       (options[:non_interactive] ? "--non-interactive " : "") +
