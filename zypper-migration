@@ -1,6 +1,7 @@
 #!/usr/bin/ruby
 
 require 'optparse'
+require 'fileutils'
 require "suse/connect"
 
 class ProductVersion
@@ -29,6 +30,36 @@ class ProductVersion
     @v
   end
 end
+
+def zypp_backup()
+  path = "/var/adm/backup/migration"
+  date = Time.now.strftime("%Y%m%d")
+  i = 0
+  file = nil
+  loop do
+    file = format('%s/%s%04d.tar.bz2', path, date, i)
+    break unless File.exist?(file)
+    i+=1
+  end
+  FileUtils.mkdir_p path
+  cmd = "tar cjf #{file} --directory=/ etc/zypp"
+  result = system cmd
+  raise "#{cmd} failed" unless result
+  return file
+end
+
+def zypp_restore(file)
+  FileUtils.mv "/etc/zypp", "/etc/zypp.migration.backup"
+  cmd = "tar xjf #{file} --directory=/"
+  result = system cmd
+  unless result
+    FileUtils.rm_rf "/etc/zypp"
+    FileUtils.mv "/etc/zypp.migration.backup", "/etc/zypp"
+    raise "#{cmd} failed"
+  end
+  FileUtils.rm_rf "/etc/zypp.migration.backup"
+end
+
 
 options = {
     :allow_vendor_change => false,
@@ -254,12 +285,12 @@ cmd = "snapper create --type pre --print-number --description 'before online mig
 print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
 pre_snapshot_num = `#{cmd}`.to_i
 
-new_services = Array.new
-
 base_product_version = nil # unknown yet
 
 result = false
 begin
+  backup = zypp_backup
+
   migration.each do |p|
     print "Upgrading product #{p.friendly_name}\n" unless options[:quiet]
     service = SUSE::Connect::YaST.upgrade_product p
@@ -297,7 +328,6 @@ begin
 
     print "Adding service #{service[:name]}\n" if options[:verbose]
     SUSE::Connect::Migration::add_service service[:url], service[:name]
-    new_services << service
 
     # store the base product version
     if p.base
@@ -371,13 +401,12 @@ end
 if !result
   print "\nPerforming repository rollback\n" unless options[:quiet]
   if !fs_rollback
-    # no fs rollback - remove newly added services
-    new_services.each do |service|
-      SUSE::Connect::Migration::remove_service service[:name]
-    end
+    # no fs rollback - restore from backup file
+    zypp_restore backup
   end
   begin
-    SUSE::Connect::Migration.rollback
+    ret = SUSE::Connect::Migration.rollback
+    print "Rollback successful\n" unless options[:quiet]
   rescue => e
     print "SUSEConnect error: #{e.class}: #{e.message}\n"
   end
