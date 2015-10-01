@@ -55,7 +55,7 @@ def create_tarball(tarball_path, root, paths)
   # do it for sure even if tar failed as it can contain partial content
   FileUtils.chmod(0600, tarball_path) if File.exist?(tarball_path)
 
-  raise "Failed to create backup" unless res
+  raise "Failed to create backup." unless res
 end
 
 def create_restore_script(script_path, tarball_path, paths)
@@ -221,7 +221,7 @@ if !system cmd
     # stop infinite restarting
     # check that the patches were really installed
     if ! system "zypper --non-interactive --quiet --no-refresh patch-check --updatestack-only > /dev/null"
-      print "patch failed, exiting\n"
+      print "patch failed, exiting.\n"
       exit 1
     end
 
@@ -244,7 +244,7 @@ begin
 
   migrations_all = SUSE::Connect::YaST.system_migrations system_products
 rescue => e
-  print "SUSEConnect error: #{e.class}: #{e.message}\n"
+  print "#{e.class}: #{e.message}\n"
   exit 1
 end
 
@@ -281,7 +281,7 @@ if migrations_unavailable.length > 0 && !options[:quiet]
 end
 
 if migrations.length == 0
-  print "No migration available\n\n" unless options[:quiet]
+  print "No migration available.\n\n" unless options[:quiet]
   exit 0
 end
 
@@ -319,7 +319,7 @@ begin
   # this must be done before snapshot, SCC rollback depends on it
   system_products.each{|ident| SUSE::Connect::Migration.install_release_package(ident.identifier)}
 rescue => e
-  print "SUSEConnect error: #{e.class}: #{e.message}\n"
+  print "#{e.class}: #{e.message}\n"
   exit 1
 end
 
@@ -338,11 +338,11 @@ begin
   zypp_backup
 
   migration.each do |p|
-    print "Upgrading product #{p.friendly_name}\n" unless options[:quiet]
+    print "Upgrading product #{p.friendly_name}.\n" unless options[:quiet]
     service = SUSE::Connect::YaST.upgrade_product p
 
     if service[:obsoleted_service_name]
-      print "Removing service #{service[:obsoleted_service_name]}\n" if options[:verbose]
+      print "Removing service #{service[:obsoleted_service_name]}.\n" if options[:verbose]
       SUSE::Connect::Migration::remove_service service[:obsoleted_service_name]
     end
 
@@ -352,7 +352,7 @@ begin
       if ProductVersion.new(available_product[:edition]) < ProductVersion.new(p.version)
         print "Found obsolete repository #{available_product[:repository]}" unless options[:quiet]
         if options[:non_interactive] || options[:disable_repos]
-          print "... disabling\n" unless options[:quiet]
+          print "... disabling.\n" unless options[:quiet]
           SUSE::Connect::Migration::disable_repository available_product[:repository]
         else
           while true
@@ -363,7 +363,7 @@ begin
               break
             end
             if  choice.eql?('y') || choice.eql?('Y')|| choice.eql?('')
-              print "... disabling\n"
+              print "... disabling.\n"
               SUSE::Connect::Migration::disable_repository available_product[:repository]
               break
             end
@@ -372,7 +372,7 @@ begin
       end
     end
 
-    print "Adding service #{service[:name]}\n" if options[:verbose]
+    print "Adding service #{service[:name]}.\n" if options[:verbose]
     SUSE::Connect::Migration::add_service service[:url], service[:name]
 
     # store the base product version
@@ -387,7 +387,7 @@ begin
   print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
   result = system cmd
 
-  raise "Refresh of repositories failed" unless result
+  raise "Refresh of repositories failed." unless result
 
   cmd = "zypper " +
         (base_product_version ? "--releasever #{base_product_version} " : "") +
@@ -410,11 +410,11 @@ begin
   fs_inconsistent = true if $?.exitstatus == 8
 
 rescue => e
-  print "SUSEConnect error: #{e.class}: #{e.message}\n"
+  print "#{e.class}: #{e.message}\n"
   result = false
 end
 
-print "\nMigration failed\n\n" unless result || options[:quiet]
+print "\nMigration failed.\n\n" unless result || options[:quiet]
 
 if fs_inconsistent
   print "The migration to the new service pack has failed. The system is most\n"
@@ -455,14 +455,14 @@ if pre_snapshot_num > 0
 end
 
 if !result
-  print "\nPerforming repository rollback\n" unless options[:quiet]
+  print "\nPerforming repository rollback...\n" unless options[:quiet]
   begin
     # restore repo configuration from backup file
     zypp_restore
     ret = SUSE::Connect::Migration.rollback
     print "Rollback successful.\n" unless options[:quiet]
   rescue => e
-    print "SUSEConnect error: #{e.class}: #{e.message}\n"
+    print "#{e.class}: #{e.message}\n"
   end
 end
 
