@@ -335,7 +335,15 @@ result = false
 fs_inconsistent = false
 
 begin
+  # allow interrupt only at specified points
+  # we have to check zypper exitstatus == 8 even after interrupt
+  interrupted = false
+  trap('INT') { interrupted = true }
+  trap('TERM') { interrupted = true }
+
   zypp_backup
+
+  raise "Interrupted." if interrupted
 
   migration.each do |p|
     print "Upgrading product #{p.friendly_name}.\n" unless options[:quiet]
@@ -358,6 +366,7 @@ begin
           while true
             print "\nDisable obsolete repository #{available_product[:repository]} [y/n] (y): "
             choice = gets.chomp
+            raise "Interrupted." if interrupted
             if choice.eql?('n') || choice.eql?('N')
               print "\n"
               break
@@ -379,6 +388,7 @@ begin
     if p.base
       base_product_version = p.version
     end
+    raise "Interrupted." if interrupted
   end
 
   cmd = "zypper " +
@@ -388,6 +398,7 @@ begin
   result = system cmd
 
   raise "Refresh of repositories failed." unless result
+  raise "Interrupted." if interrupted
 
   cmd = "zypper " +
         (base_product_version ? "--releasever #{base_product_version} " : "") +
@@ -408,6 +419,7 @@ begin
   print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
   result = system cmd
   fs_inconsistent = true if $?.exitstatus == 8
+  raise "Interrupted." if interrupted
 
 rescue => e
   print "#{e.class}: #{e.message}\n"
