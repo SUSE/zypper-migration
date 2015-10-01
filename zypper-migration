@@ -332,6 +332,8 @@ ENV['DISABLE_SNAPPER_ZYPP_PLUGIN'] = '1'
 base_product_version = nil # unknown yet
 
 result = false
+fs_inconsistent = false
+
 begin
   zypp_backup
 
@@ -405,6 +407,7 @@ begin
         (options[:from].map { |r| "--from #{r}" }.join(" "))
   print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
   result = system cmd
+  fs_inconsistent = true if $?.exitstatus == 8
 
 rescue => e
   print "SUSEConnect error: #{e.class}: #{e.message}\n"
@@ -413,44 +416,51 @@ end
 
 print "\nMigration failed\n\n" unless result || options[:quiet]
 
-fs_rollback = false
+if fs_inconsistent
+  print "The migration to the new service pack has failed. The system is most\n"
+  print "likely in an inconsistent state.\n"
+  print "\n"
+  print "We strongly recommend to rollback to a snapshot created before the\n"
+  print "migration was started (via selecting the snapshot in the boot menu\n"
+  print "if you use snapper) or restore the system from a backup.\n"
+  exit 2
+end
+
 if pre_snapshot_num > 0
   cmd = "snapper create --type post --pre-number #{pre_snapshot_num} --print-number --description 'after online migration'"
   print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
   post_snapshot_num = `#{cmd}`.to_i
-  if !result && post_snapshot_num > 0
-    cmd = "snapper undochange #{pre_snapshot_num}..#{post_snapshot_num}"
-    fs_rollback = true # enabled by default if we have snapshots
-    unless options[:non_interactive]
-      while true
-        print "Perform filesystem rollback with '#{cmd}' [y/n] (y): "
-        choice = gets.chomp
-        print "\n"
-        if choice.eql?('n') || choice.eql?('N')
-          fs_rollback = false
-          break
-        end
-        if choice.eql?('y') || choice.eql?('Y')|| choice.eql?('')
-          break
-        end
-      end
-    end
-    if fs_rollback
-      print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
-      system cmd
-    end
-  end
+#  Filesystem rollback - considered too dangerous
+#  if !result && post_snapshot_num > 0 && fs_inconsistent
+#    cmd = "snapper undochange #{pre_snapshot_num}..#{post_snapshot_num}"
+#    unless options[:non_interactive]
+#      while true
+#        print "Perform filesystem rollback with '#{cmd}' [y/n] (y): "
+#        choice = gets.chomp
+#        print "\n"
+#        if choice.eql?('n') || choice.eql?('N')
+#          fs_inconsistent = false
+#          break
+#        end
+#        if choice.eql?('y') || choice.eql?('Y')|| choice.eql?('')
+#          break
+#        end
+#      end
+#    end
+#    if fs_inconsistent
+#      print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
+#      system cmd
+#    end
+#  end
 end
 
 if !result
   print "\nPerforming repository rollback\n" unless options[:quiet]
-  if !fs_rollback
-    # no fs rollback - restore from backup file
-    zypp_restore
-  end
   begin
+    # restore repo configuration from backup file
+    zypp_restore
     ret = SUSE::Connect::Migration.rollback
-    print "Rollback successful\n" unless options[:quiet]
+    print "Rollback successful.\n" unless options[:quiet]
   rescue => e
     print "SUSEConnect error: #{e.class}: #{e.message}\n"
   end
