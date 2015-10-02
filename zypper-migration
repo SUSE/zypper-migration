@@ -349,7 +349,7 @@ begin
     print "Upgrading product #{p.friendly_name}.\n" unless options[:quiet]
     service = SUSE::Connect::YaST.upgrade_product p
 
-    if service[:obsoleted_service_name]
+    unless service[:obsoleted_service_name].empty?
       print "Removing service #{service[:obsoleted_service_name]}.\n" if options[:verbose]
       SUSE::Connect::Migration::remove_service service[:obsoleted_service_name]
     end
