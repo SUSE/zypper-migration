@@ -261,7 +261,7 @@ migrations_all.each do |migration|
     end
   end
   # put already_installed products last and base products first
-  migration = migration.sort_by { |p| [p.already_installed ? 1 : 0, p.base ? 0 : 1] }
+  migration = migration.sort_by.with_index { |p, idx| [p.already_installed ? 1 : 0, p.base ? 0 : 1, idx] }
   if migr_available
     migrations << migration
   else
