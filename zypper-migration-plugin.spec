@@ -28,6 +28,7 @@ Summary:        Zypper subcommand for online migration
 License:        GPL-2.0
 Group:          System/Packages
 BuildArch:      noarch
+Supplements:    packageand(zypper:SUSEConnect)
 
 %description
 Zypper subcommand for online migration.
