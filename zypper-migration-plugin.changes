@@ -1,4 +1,9 @@
 -------------------------------------------------------------------
+Tue Dec 15 14:15:55 UTC 2015 - nadvornik@suse.com
+
+- do not add --recommends by default (bsc#959134)
+
+-------------------------------------------------------------------
 Fri Nov 27 11:42:03 UTC 2015 - stephan.barth@suse.com
 
 - Extended Supplements from zypper to zypper and SUSEConnect to improve
