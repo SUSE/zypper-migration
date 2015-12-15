@@ -111,7 +111,8 @@ options = {
     :from => [],
     :auto_agree => false,
     :debug_solver => false,
-    :recommends => true,
+    :recommends => false,
+    :no_recommends => false,
     :replacefiles => false,
     :details => false,
     :download => nil
@@ -168,8 +169,12 @@ OptionParser.new do |opts|
     options[:debug_solver] = a
   end
 
-  opts.on("--[no-]recommends", "Install also recommended packages") do |a|
-    options[:recommends] = a
+  opts.on("--recommends", "Install also recommended packages") do
+    options[:recommends] = true
+  end
+
+  opts.on("--no-recommends", "Do not install recommended packages") do
+    options[:no_recommends] = true
   end
 
   opts.on("--replacefiles", "Install the packages even if they replace files from other packages") do |a|
@@ -410,7 +415,8 @@ begin
         (options[:allow_vendor_change] ? "--allow-vendor-change " : "--no-allow-vendor-change ") +
         (options[:auto_agree] ? "--auto-agree-with-licenses " : "") +
         (options[:debug_solver] ? "--debug-solver " : "") +
-        (options[:recommends] ? "--recommends " : "--no-recommends ") +
+        (options[:recommends] ? "--recommends " : "") +
+        (options[:no_recommends] ? "--no-recommends " : "") +
         (options[:replacefiles] ? "--replacefiles " : "") +
         (options[:details] ? "--details " : "") +
         (options[:download] ? "--download #{options[:download]} " : "") +
