@@ -239,6 +239,22 @@ print "\n" unless options[:quiet]
 
 begin
   system_products = SUSE::Connect::Migration::system_products
+
+  system_products.each do |ident|
+    begin
+      # if a release package for registered product is missing -> try install it
+      SUSE::Connect::Migration.install_release_package(ident.identifier)
+    rescue => e
+      print "#{e.class}: #{e.message}\n"
+    end
+  end
+
+  print "Calling SUSEConnect rollback to make sure SCC is synchronized with the system state.\n" unless options[:quiet]
+  SUSE::Connect::Migration.rollback
+
+  # re-read the list of products
+  system_products = SUSE::Connect::Migration::system_products
+
   if options[:verbose]
     print "Installed products:\n"
     system_products.each {|p|
@@ -319,14 +335,6 @@ while migration_num <= 0 || migration_num > migrations.length do
 end
 
 migration = migrations[migration_num - 1]
-
-begin
-  # this must be done before snapshot, SCC rollback depends on it
-  system_products.each{|ident| SUSE::Connect::Migration.install_release_package(ident.identifier)}
-rescue => e
-  print "#{e.class}: #{e.message}\n"
-  exit 1
-end
 
 cmd = "snapper create --type pre --print-number --description 'before online migration'"
 print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
