@@ -240,20 +240,26 @@ print "\n" unless options[:quiet]
 begin
   system_products = SUSE::Connect::Migration::system_products
 
+  release_package_missing = false
   system_products.each do |ident|
     begin
       # if a release package for registered product is missing -> try install it
       SUSE::Connect::Migration.install_release_package(ident.identifier)
     rescue => e
-      print "#{e.class}: #{e.message}\n"
+      release_package_missing = true
+      print "Can't install release package for registered product #{ident.identifier}\n" unless options[:quiet]
+      print "#{e.class}: #{e.message}\n" unless options[:quiet]
     end
   end
 
-  print "Calling SUSEConnect rollback to make sure SCC is synchronized with the system state.\n" unless options[:quiet]
-  SUSE::Connect::Migration.rollback
+  if release_package_missing
+    # some release packages are missing and can't be installed
+    print "Calling SUSEConnect rollback to make sure SCC is synchronized with the system state.\n" unless options[:quiet]
+    SUSE::Connect::Migration.rollback
 
-  # re-read the list of products
-  system_products = SUSE::Connect::Migration::system_products
+    # re-read the list of products
+    system_products = SUSE::Connect::Migration::system_products
+  end
 
   if options[:verbose]
     print "Installed products:\n"
