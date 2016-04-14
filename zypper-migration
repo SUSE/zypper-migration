@@ -189,7 +189,7 @@ OptionParser.new do |opts|
     options[:download] = a
   end
 
-  opts.on("--download-only", "Only download the packages, do not install") do |d|
+  opts.on("--download-only", "Replace repositories and download the packages, do not install. WARNING: Upgrade with 'zypper dist-upgrade' as soon as possible.") do |d|
     options[:download] = "only" if d
   end
 
