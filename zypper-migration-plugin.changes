@@ -1,10 +1,18 @@
 -------------------------------------------------------------------
+Mon Apr 18 15:32:36 UTC 2016 - nadvornik@suse.com
+
+- better help for --download-only (bsc#973886)
+- call rollback only if release package can't be installed
+- better error messages (bsc#975485)
+- added man page (bsc#972688)
+- version 0.9
+
+-------------------------------------------------------------------
 Mon Apr  4 11:51:44 UTC 2016 - nadvornik@suse.com
 
 - install release packages and call SUSEConnect
   rollback before getting migration target
   (fate#320533)
-- version 0.9
 
 -------------------------------------------------------------------
 Tue Dec 15 14:15:55 UTC 2015 - nadvornik@suse.com
