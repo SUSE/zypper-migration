@@ -268,10 +268,20 @@ begin
     }
     print "\n"
   end
+rescue => e
+  print "Can't determine the list of installed products: #{e.class}: #{e.message}\n"
+  exit 1
+end
 
+if system_products.length == 0
+  print "No products found, migration is not possible.\n"
+  exit 1
+end
+
+begin
   migrations_all = SUSE::Connect::YaST.system_migrations system_products
 rescue => e
-  print "#{e.class}: #{e.message}\n"
+  print "Can't get available migrations from server: #{e.class}: #{e.message}\n"
   exit 1
 end
 
@@ -352,6 +362,7 @@ base_product_version = nil # unknown yet
 
 result = false
 fs_inconsistent = false
+msg = "Preparing migration"
 
 begin
   # allow interrupt only at specified points
@@ -365,11 +376,13 @@ begin
   raise "Interrupted." if interrupted
 
   migration.each do |p|
-    print "Upgrading product #{p.friendly_name}.\n" unless options[:quiet]
+    msg = "Upgrading product #{p.friendly_name}"
+    print "#{msg}.\n" unless options[:quiet]
     service = SUSE::Connect::YaST.upgrade_product p
 
     unless service[:obsoleted_service_name].empty?
-      print "Removing service #{service[:obsoleted_service_name]}.\n" if options[:verbose]
+      msg = "Removing service #{service[:obsoleted_service_name]}"
+      print "#{msg}.\n" if options[:verbose]
       SUSE::Connect::Migration::remove_service service[:obsoleted_service_name]
     end
 
@@ -400,7 +413,8 @@ begin
       end
     end
 
-    print "Adding service #{service[:name]}.\n" if options[:verbose]
+    msg = "Adding service #{service[:name]}"
+    print "#{msg}.\n" if options[:verbose]
     SUSE::Connect::Migration::add_service service[:url], service[:name]
 
     # store the base product version
@@ -413,7 +427,8 @@ begin
   cmd = "zypper " +
         (base_product_version ? "--releasever #{base_product_version} " : "") +
         "ref -f"
-  print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
+  msg = "Executing '#{cmd}'"
+  print "\n#{msg}\n\n" unless options[:quiet]
   result = system cmd
 
   raise "Refresh of repositories failed." unless result
@@ -436,13 +451,14 @@ begin
         (options[:download] ? "--download #{options[:download]} " : "") +
         (options[:repo].map { |r| "--repo #{r}" }.join(" ")) +
         (options[:from].map { |r| "--from #{r}" }.join(" "))
-  print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
+  msg = "Executing '#{cmd}'"
+  print "\n#{msg}\n\n" unless options[:quiet]
   result = system cmd
   fs_inconsistent = true if $?.exitstatus == 8
   raise "Interrupted." if interrupted
 
 rescue => e
-  print "#{e.class}: #{e.message}\n"
+  print "#{msg}: #{e.class}: #{e.message}\n"
   result = false
 end
 
@@ -494,7 +510,7 @@ if !result
     ret = SUSE::Connect::Migration.rollback
     print "Rollback successful.\n" unless options[:quiet]
   rescue => e
-    print "#{e.class}: #{e.message}\n"
+    print "Rollback failed: #{e.class}: #{e.message}\n"
   end
 end
 
