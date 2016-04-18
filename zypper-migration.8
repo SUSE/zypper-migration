@@ -1,0 +1,67 @@
+.\" Manpage for zypper-migration.
+.TH man 8 "18 Apr 2016" "1.0" "zypper-migration man page"
+.SH NAME
+zypper-migration \- perform service pack migration
+.SH SYNOPSIS
+zypper migration [options]
+.SH DESCRIPTION
+zypper-migration performs online system migration to new service pack.
+.SH OPTIONS
+.TP
+.B --[no-]allow-vendor-change
+Allow vendor change
+.TP
+.B -v, --[no-]verbose
+Increase verbosity
+.TP
+.B -q, --[no-]quiet
+Suppress normal output, print only error messages
+.TP
+.B -n, --non-interactive
+Do not ask anything, use default answers automatically
+.TP
+.B --query
+Query available migration options and exit
+.TP
+.B --disable-repos
+Disable obsolete repositories without asking
+.TP
+.B --migration N
+Select migration option N
+.TP
+.B --from REPO
+Restrict upgrade to specified repository
+.TP
+.B -r, --repo REPO
+Load only the specified repository
+.TP
+.B -l, --auto-agree-with-licenses
+Automatically say 'yes' to third party license confirmation prompt
+.TP
+.B --debug-solver
+Create solver test case for debugging
+.TP
+.B --recommends
+Install also recommended packages
+.TP
+.B --no-recommends
+Do not install recommended packages
+.TP
+.B --replacefiles
+Install the packages even if they replace files from other packages
+.TP
+.B --details
+Show the detailed installation summary
+.TP
+.B --download MODE
+Set the download-install mode
+.TP
+.B --download-only
+Replace repositories and download the packages, do not install. WARNING: This leaves the system in inconsistent
+state with new repositories and old packages installed. Upgrade with 'zypper dist-upgrade' as soon as possible.
+.SH SEE ALSO
+zypper(8)
+.SH BUGS
+No known bugs.
+.SH AUTHOR
+Vladimir Nadvornik <nadvornik@suse.cz>
