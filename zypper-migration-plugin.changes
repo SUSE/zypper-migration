@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Wed Aug 31 09:05:47 UTC 2016 - nadvornik@suse.com
+
+- use the same snapper commandline as yast2 migration (bsc#984324)
+- version 0.10
+
+-------------------------------------------------------------------
 Mon Apr 18 15:32:36 UTC 2016 - nadvornik@suse.com
 
 - better help for --download-only (bsc#973886)
