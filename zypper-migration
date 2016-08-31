@@ -352,7 +352,7 @@ end
 
 migration = migrations[migration_num - 1]
 
-cmd = "snapper create --type pre --print-number --description 'before online migration'"
+cmd = "snapper create --type pre --cleanup-algorithm=number --print-number --userdata important=yes --description 'before online migration'"
 print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
 pre_snapshot_num = `#{cmd}`.to_i
 
@@ -475,7 +475,7 @@ if fs_inconsistent
 end
 
 if pre_snapshot_num > 0
-  cmd = "snapper create --type post --pre-number #{pre_snapshot_num} --print-number --description 'after online migration'"
+  cmd = "snapper create --type post --pre-number #{pre_snapshot_num} --cleanup-algorithm=number --print-number --userdata important=yes --description 'after online migration'"
   print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
   post_snapshot_num = `#{cmd}`.to_i
 #  Filesystem rollback - considered too dangerous
