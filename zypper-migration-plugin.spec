@@ -17,14 +17,14 @@
 
 Name:           zypper-migration-plugin
 Version:        0.10
+URL:            https://github.com/SUSE/zypper-migration
 Release:        0
 Requires:       rubygem(%{rb_default_ruby_abi}:suse-connect) >= 0.2.24
 Requires:       zypper >= 1.11.38
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 BuildRequires:  ruby-macros >= 5
 BuildRequires:  zypper >= 1.11.38
-Source1:        zypper-migration
-Source2:        zypper-migration.8
+Source:         zypper-migration-%{version}.tar.xz
 Summary:        Zypper subcommand for online migration
 License:        GPL-2.0
 Group:          System/Packages
@@ -35,13 +35,14 @@ Supplements:    packageand(zypper:SUSEConnect)
 Zypper subcommand for online migration to new service pack.
 
 %prep
+%setup -q -n zypper-migration-%{version}
 
 %build
 
 %install
 mkdir -p $RPM_BUILD_ROOT/usr/lib/zypper/commands $RPM_BUILD_ROOT/%{_mandir}/man8
-install -m 755 %{S:1} $RPM_BUILD_ROOT/usr/lib/zypper/commands/
-install -m 644 %{S:2} $RPM_BUILD_ROOT/%{_mandir}/man8/
+install -m 755 zypper-migration $RPM_BUILD_ROOT/usr/lib/zypper/commands/
+install -m 644 zypper-migration.8 $RPM_BUILD_ROOT/%{_mandir}/man8/
 
 %files
 %defattr(-,root,root,-)
