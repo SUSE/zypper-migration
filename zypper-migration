@@ -115,7 +115,8 @@ options = {
     :no_recommends => false,
     :replacefiles => false,
     :details => false,
-    :download => nil
+    :download => nil,
+    :no_snapshots=> false
 }
 
 STDOUT.sync = true
@@ -191,6 +192,10 @@ OptionParser.new do |opts|
 
   opts.on("--download-only", "Replace repositories and download the packages, do not install. WARNING: Upgrade with 'zypper dist-upgrade' as soon as possible.") do |d|
     options[:download] = "only" if d
+  end
+
+  opts.on("--no-snapshots", "Do not create snapshots.") do
+    options[:no_snapshots] = true
   end
 
 end.parse!
@@ -329,7 +334,7 @@ if options[:non_interactive] && migration_num == 0
 end
 
 
-while migration_num <= 0 || migration_num > migrations.length do 
+while migration_num <= 0 || migration_num > migrations.length do
   print "Available migrations:\n\n"
   migrations.each_with_index do |migration, index|
     printf "   %2d |", index + 1
@@ -344,7 +349,7 @@ while migration_num <= 0 || migration_num > migrations.length do
   end
   while migration_num <= 0 || migration_num > migrations.length do
     print "[num/q]: "
-    choice = gets.chomp 
+    choice = gets.chomp
     exit 0 if choice.eql?("q") || choice.eql?("Q")
     migration_num = choice.to_i
   end
@@ -352,9 +357,11 @@ end
 
 migration = migrations[migration_num - 1]
 
-cmd = "snapper create --type pre --cleanup-algorithm=number --print-number --userdata important=yes --description 'before online migration'"
-print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
-pre_snapshot_num = `#{cmd}`.to_i
+if !options[:no_snapshots]
+  cmd = "snapper create --type pre --cleanup-algorithm=number --print-number --userdata important=yes --description 'before online migration'"
+  print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
+  pre_snapshot_num = `#{cmd}`.to_i
+end
 
 ENV['DISABLE_SNAPPER_ZYPP_PLUGIN'] = '1'
 
@@ -474,7 +481,7 @@ if fs_inconsistent
   exit 2
 end
 
-if pre_snapshot_num > 0
+if !options[:no_snapshots] && pre_snapshot_num > 0
   cmd = "snapper create --type post --pre-number #{pre_snapshot_num} --cleanup-algorithm=number --print-number --userdata important=yes --description 'after online migration'"
   print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
   post_snapshot_num = `#{cmd}`.to_i
@@ -515,5 +522,3 @@ if !result
 end
 
 exit 1 unless result
-
-
