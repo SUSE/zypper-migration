@@ -115,7 +115,9 @@ options = {
     :no_recommends => false,
     :replacefiles => false,
     :details => false,
-    :download => nil
+    :download => nil,
+    :no_snapshots => false,
+    :root => nil
 }
 
 STDOUT.sync = true
@@ -193,6 +195,15 @@ OptionParser.new do |opts|
     options[:download] = "only" if d
   end
 
+  opts.on("--no-snapshots", "Do not create snapshots.") do
+    options[:no_snapshots] = true
+  end
+
+  opts.on("--root DIR", "Operate on a different root directory") do |r|
+    options[:root] = r
+    SUSE::Connect::System.filesystem_root = r
+  end
+
 end.parse!
 
 cmd = "zypper " +
@@ -207,6 +218,7 @@ if !system cmd
 end
 
 cmd = "zypper " +
+      (options[:root] ? "--root #{options[:root]} " : "") +
       (options[:non_interactive] ? "--non-interactive " : "") +
       (options[:verbose] ? "--verbose " : "") +
       (options[:quiet] ? "--quiet " : "") +
@@ -216,6 +228,7 @@ if !system cmd
   if $?.exitstatus >= 100
     # install pending updates and restart
     cmd = "zypper " +
+          (options[:root] ? "--root #{options[:root]} " : "") +
           (options[:non_interactive] ? "--non-interactive " : "") +
           (options[:verbose] ? "--verbose " : "") +
           (options[:quiet] ? "--quiet " : "") +
@@ -225,7 +238,10 @@ if !system cmd
 
     # stop infinite restarting
     # check that the patches were really installed
-    if ! system "zypper --non-interactive --quiet --no-refresh patch-check --updatestack-only > /dev/null"
+    cmd = "zypper " +
+      (options[:root] ? "--root #{options[:root]} " : "") +
+      "--non-interactive --quiet --no-refresh patch-check --updatestack-only > /dev/null"
+    if ! system cmd
       print "patch failed, exiting.\n"
       exit 1
     end
@@ -329,7 +345,7 @@ if options[:non_interactive] && migration_num == 0
 end
 
 
-while migration_num <= 0 || migration_num > migrations.length do 
+while migration_num <= 0 || migration_num > migrations.length do
   print "Available migrations:\n\n"
   migrations.each_with_index do |migration, index|
     printf "   %2d |", index + 1
@@ -344,7 +360,7 @@ while migration_num <= 0 || migration_num > migrations.length do
   end
   while migration_num <= 0 || migration_num > migrations.length do
     print "[num/q]: "
-    choice = gets.chomp 
+    choice = gets.chomp
     exit 0 if choice.eql?("q") || choice.eql?("Q")
     migration_num = choice.to_i
   end
@@ -352,9 +368,11 @@ end
 
 migration = migrations[migration_num - 1]
 
-cmd = "snapper create --type pre --cleanup-algorithm=number --print-number --userdata important=yes --description 'before online migration'"
-print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
-pre_snapshot_num = `#{cmd}`.to_i
+if !options[:no_snapshots]
+  cmd = "snapper create --type pre --cleanup-algorithm=number --print-number --userdata important=yes --description 'before online migration'"
+  print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
+  pre_snapshot_num = `#{cmd}`.to_i
+end
 
 ENV['DISABLE_SNAPPER_ZYPP_PLUGIN'] = '1'
 
@@ -425,6 +443,7 @@ begin
   end
 
   cmd = "zypper " +
+        (options[:root] ? "--root #{options[:root]} " : "") +
         (base_product_version ? "--releasever #{base_product_version} " : "") +
         "ref -f"
   msg = "Executing '#{cmd}'"
@@ -435,6 +454,7 @@ begin
   raise "Interrupted." if interrupted
 
   cmd = "zypper " +
+        (options[:root] ? "--root #{options[:root]} " : "") +
         (base_product_version ? "--releasever #{base_product_version} " : "") +
         (options[:non_interactive] ? "--non-interactive " : "") +
         (options[:verbose] ? "--verbose " : "") +
@@ -474,7 +494,7 @@ if fs_inconsistent
   exit 2
 end
 
-if pre_snapshot_num > 0
+if !options[:no_snapshots] && pre_snapshot_num > 0
   cmd = "snapper create --type post --pre-number #{pre_snapshot_num} --cleanup-algorithm=number --print-number --userdata important=yes --description 'after online migration'"
   print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
   post_snapshot_num = `#{cmd}`.to_i
@@ -515,5 +535,3 @@ if !result
 end
 
 exit 1 unless result
-
-

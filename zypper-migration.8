@@ -58,7 +58,14 @@ Set the download-install mode
 .TP
 .B --download-only
 Replace repositories and download the packages, do not install. WARNING: This leaves the system in inconsistent
-state with new repositories and old packages installed. Upgrade with 'zypper dist-upgrade' as soon as possible.
+state with new repositories and old packages installed. Upgrade with 'zypper
+dist-upgrade' as soon as possible.
+.TP
+.B --no-snapshots
+Don't create snapshots during migration
+.TP
+.B --root DIRECTORY
+Operate on a different root directory.
 .SH SEE ALSO
 zypper(8)
 .SH BUGS
