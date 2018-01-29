@@ -206,24 +206,12 @@ OptionParser.new do |opts|
 
 end.parse!
 
-cmd = "zypper " +
-      (options[:root] ? "--root #{options[:root]} " : "") +
-      (options[:non_interactive] ? "--non-interactive " : "") +
-      (options[:verbose] ? "--verbose " : "") +
-      (options[:quiet] ? "--quiet " : "") +
-      " refresh"
-print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
-if !system cmd
-  print print "repository refresh failed, exiting\n"
-  exit 1
-end
-
 # Update stack can be outside of the to be updated system
 cmd = "zypper " +
       (options[:non_interactive] ? "--non-interactive " : "") +
       (options[:verbose] ? "--verbose " : "") +
       (options[:quiet] ? "--quiet " : "") +
-      " --no-refresh patch-check --updatestack-only"
+      "patch-check --updatestack-only"
 print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
 if !system cmd
   if $?.exitstatus >= 100
@@ -232,7 +220,7 @@ if !system cmd
           (options[:non_interactive] ? "--non-interactive " : "") +
           (options[:verbose] ? "--verbose " : "") +
           (options[:quiet] ? "--quiet " : "") +
-          " --no-refresh patch --updatestack-only"
+          "--no-refresh patch --updatestack-only"
     print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
     system cmd
 
@@ -252,6 +240,19 @@ if !system cmd
   exit 1
 end
 print "\n" unless options[:quiet]
+
+# This is only necessary, if we run with --root option
+cmd = "zypper " +
+      (options[:root] ? "--root #{options[:root]} " : "") +
+      (options[:non_interactive] ? "--non-interactive " : "") +
+      (options[:verbose] ? "--verbose " : "") +
+      (options[:quiet] ? "--quiet " : "") +
+      " refresh"
+print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
+if !system cmd
+  print print "repository refresh failed, exiting\n"
+  exit 1
+end
 
 begin
   system_products = SUSE::Connect::Migration::system_products
