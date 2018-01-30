@@ -81,7 +81,7 @@ EOF
 end
 
 
-def zypp_backup()
+def zypp_backup(root)
   tarball_path = "/var/adm/backup/system-upgrade/repos.tar.gz"
   paths = [
             "/etc/zypp/repos.d",
@@ -89,7 +89,7 @@ def zypp_backup()
             "/etc/zypp/services.d"
           ]
 
-  create_tarball(tarball_path, options[:root] ? options[:root]: "/", paths)
+  create_tarball(tarball_path, root, paths)
 
   script_path = "/var/adm/backup/system-upgrade/repos.sh"
   create_restore_script(script_path, tarball_path, paths)
@@ -392,7 +392,7 @@ begin
   trap('INT') { interrupted = true }
   trap('TERM') { interrupted = true }
 
-  zypp_backup
+  zypp_backup(options[:root] ? options[:root]: "/")
 
   raise "Interrupted." if interrupted
 
