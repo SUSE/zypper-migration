@@ -202,6 +202,8 @@ OptionParser.new do |opts|
   opts.on("--root DIR", "Operate on a different root directory") do |r|
     options[:root] = r
     SUSE::Connect::System.filesystem_root = r
+    # if we update a chroot system, we cannot create snapshots of it
+    options[:no_snapshots] = true
   end
 
 end.parse!
