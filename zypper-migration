@@ -81,7 +81,7 @@ EOF
 end
 
 
-def zypp_backup()
+def zypp_backup(root)
   tarball_path = "/var/adm/backup/system-upgrade/repos.tar.gz"
   paths = [
             "/etc/zypp/repos.d",
@@ -89,7 +89,7 @@ def zypp_backup()
             "/etc/zypp/services.d"
           ]
 
-  create_tarball(tarball_path, '/', paths)
+  create_tarball(tarball_path, root, paths)
 
   script_path = "/var/adm/backup/system-upgrade/repos.sh"
   create_restore_script(script_path, tarball_path, paths)
@@ -202,37 +202,27 @@ OptionParser.new do |opts|
   opts.on("--root DIR", "Operate on a different root directory") do |r|
     options[:root] = r
     SUSE::Connect::System.filesystem_root = r
+    # if we update a chroot system, we cannot create snapshots of it
+    options[:no_snapshots] = true
   end
 
 end.parse!
 
+# Update stack can be outside of the to be updated system
 cmd = "zypper " +
       (options[:non_interactive] ? "--non-interactive " : "") +
       (options[:verbose] ? "--verbose " : "") +
       (options[:quiet] ? "--quiet " : "") +
-      " refresh"
-print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
-if !system cmd
-  print print "repository refresh failed, exiting\n"
-  exit 1
-end
-
-cmd = "zypper " +
-      (options[:root] ? "--root #{options[:root]} " : "") +
-      (options[:non_interactive] ? "--non-interactive " : "") +
-      (options[:verbose] ? "--verbose " : "") +
-      (options[:quiet] ? "--quiet " : "") +
-      " --no-refresh patch-check --updatestack-only"
+      "patch-check --updatestack-only"
 print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
 if !system cmd
   if $?.exitstatus >= 100
     # install pending updates and restart
     cmd = "zypper " +
-          (options[:root] ? "--root #{options[:root]} " : "") +
           (options[:non_interactive] ? "--non-interactive " : "") +
           (options[:verbose] ? "--verbose " : "") +
           (options[:quiet] ? "--quiet " : "") +
-          " --no-refresh patch --updatestack-only"
+          "--no-refresh patch --updatestack-only"
     print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
     system cmd
 
@@ -252,6 +242,19 @@ if !system cmd
   exit 1
 end
 print "\n" unless options[:quiet]
+
+# This is only necessary, if we run with --root option
+cmd = "zypper " +
+      (options[:root] ? "--root #{options[:root]} " : "") +
+      (options[:non_interactive] ? "--non-interactive " : "") +
+      (options[:verbose] ? "--verbose " : "") +
+      (options[:quiet] ? "--quiet " : "") +
+      " refresh"
+print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
+if !system cmd
+  print print "repository refresh failed, exiting\n"
+  exit 1
+end
 
 begin
   system_products = SUSE::Connect::Migration::system_products
@@ -389,7 +392,7 @@ begin
   trap('INT') { interrupted = true }
   trap('TERM') { interrupted = true }
 
-  zypp_backup
+  zypp_backup(options[:root] ? options[:root]: "/")
 
   raise "Interrupted." if interrupted
 
