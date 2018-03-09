@@ -1,4 +1,9 @@
 -------------------------------------------------------------------
+Fri Mar  9 11:37:00 UTC 2018 - nadvornik@suse.com
+
+- more changes to get --root working
+
+-------------------------------------------------------------------
 Thu Jan 25 09:54:05 UTC 2018 - nadvornik@suse.com
 
 - add --no-snapshots and --root options
