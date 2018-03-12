@@ -1,7 +1,7 @@
 #
-# spec file for package zypper-migration
+# spec file for package zypper-migration-plugin
 #
-# Copyright (c) 2015 SUSE LINUX Products GmbH, Nuernberg, Germany.
+# Copyright (c) 2018 SUSE LINUX GmbH, Nuernberg, Germany.
 #
 # All modifications and additions to the file contributed by third parties
 # remain the property of their copyright owners, unless otherwise agreed
@@ -15,10 +15,11 @@
 # Please submit bugfixes or comments via http://bugs.opensuse.org/
 #
 
+
 Name:           zypper-migration-plugin
-Version:        0.11
-URL:            https://github.com/SUSE/zypper-migration
+Version:        0.12
 Release:        0
+Url:            https://github.com/SUSE/zypper-migration
 Requires:       rubygem(%{rb_default_ruby_abi}:suse-connect) >= 0.3.10
 Requires:       zypper >= 1.11.38
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
@@ -26,7 +27,7 @@ BuildRequires:  ruby-macros >= 5
 BuildRequires:  zypper >= 1.11.38
 Source:         zypper-migration-%{version}.tar.xz
 Summary:        Zypper subcommand for online migration
-License:        GPL-2.0
+License:        GPL-2.0-only
 Group:          System/Packages
 BuildArch:      noarch
 Supplements:    packageand(zypper:SUSEConnect)
