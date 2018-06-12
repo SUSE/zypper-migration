@@ -7,13 +7,14 @@ Tue Jun 12 13:20:24 CEST 2018 - kukuk@suse.de
 -------------------------------------------------------------------
 Fri Mar  9 11:37:00 UTC 2018 - nadvornik@suse.com
 
-- more changes to get --root working
+- version 0.11.1520597355.bcf74ad
+  - more changes to get --root working
 
 -------------------------------------------------------------------
 Thu Jan 25 09:54:05 UTC 2018 - nadvornik@suse.com
 
-- add --no-snapshots and --root options
-- version 0.11
+- version 0.11.1516874532.fa20262
+  - add --no-snapshots and --root options
 
 -------------------------------------------------------------------
 Wed Aug 31 09:05:47 UTC 2016 - nadvornik@suse.com
