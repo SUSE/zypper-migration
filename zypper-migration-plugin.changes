@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Tue Jun 12 13:20:24 CEST 2018 - kukuk@suse.de
+
+- implement offline migration
+- require SUSEConnect >= 0.3.10
+
+-------------------------------------------------------------------
 Fri Mar  9 11:37:00 UTC 2018 - nadvornik@suse.com
 
 - more changes to get --root working
