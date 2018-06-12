@@ -99,6 +99,13 @@ def zypp_restore()
   system "sh /var/adm/backup/system-upgrade/repos.sh >/dev/null"
 end
 
+def check_if_param(opt, message)
+  unless opt
+    print message
+    exit 1
+  end
+end
+
 
 options = {
     :allow_vendor_change => false,
@@ -117,6 +124,8 @@ options = {
     :details => false,
     :download => nil,
     :no_snapshots => false,
+    :to_product => nil,
+    :break_my_system => false,
     :root => nil
 }
 
@@ -199,6 +208,18 @@ OptionParser.new do |opts|
     options[:no_snapshots] = true
   end
 
+  opts.on("--break-my-system", "For testing and debugging purpose only.") do
+    options[:break_my_system] = true
+  end
+
+  opts.on("--product PRODUCT", "Specify a product to which the system should be upgraded in offline mode.",
+          "Format: <name>/<version>/<architecture>") do |p|
+    check_if_param(p, 'Please provide a product identifier')
+    check_if_param((p =~ /\S+\/\S+\/\S+/), 'Please provide the product identifier in this format: ' \
+                   '<internal name>/<version>/<architecture>.')
+    options[:to_product] = p
+  end
+
   opts.on("--root DIR", "Operate on a different root directory") do |r|
     options[:root] = r
     SUSE::Connect::System.filesystem_root = r
@@ -207,6 +228,11 @@ OptionParser.new do |opts|
   end
 
 end.parse!
+
+if options[:to_product] && !options[:root] && !options[:break_my_system]
+  print "The --product option can only be used together with the --root option\n"
+  exit 1
+end
 
 # Update stack can be outside of the to be updated system
 cmd = "zypper " +
@@ -297,11 +323,26 @@ if system_products.length == 0
   exit 1
 end
 
-begin
-  migrations_all = SUSE::Connect::YaST.system_migrations system_products
-rescue => e
-  print "Can't get available migrations from server: #{e.class}: #{e.message}\n"
-  exit 1
+if options[:to_product]
+  begin
+    identifier, version, arch = options[:to_product].split('/')
+    new_product = OpenStruct.new(
+                                 identifier: identifier,
+                                 version:   version,
+                                 arch:       arch
+                                 )
+    migrations_all = SUSE::Connect::YaST.system_offline_migrations(system_products, new_product)
+  rescue => e
+    print "Can't get available migrations from server: #{e.class}: #{e.message}\n"
+    exit 1
+  end
+else
+  begin
+    migrations_all = SUSE::Connect::YaST.system_migrations system_products
+  rescue => e
+    print "Can't get available migrations from server: #{e.class}: #{e.message}\n"
+    exit 1
+  end
 end
 
 #preprocess the migrations lists
