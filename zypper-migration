@@ -126,6 +126,7 @@ options = {
     :no_snapshots => false,
     :to_product => nil,
     :break_my_system => false,
+    :selfupdate => true,
     :root => nil
 }
 
@@ -220,6 +221,10 @@ OptionParser.new do |opts|
     options[:to_product] = p
   end
 
+  opts.on("--[no-]selfupdate", "Do not update the update stack first") do |s|
+    options[:selfupdate] = s
+  end
+
   opts.on("--root DIR", "Operate on a different root directory") do |r|
     options[:root] = r
     SUSE::Connect::System.filesystem_root = r
@@ -234,38 +239,40 @@ if options[:to_product] && !options[:root] && !options[:break_my_system]
   exit 1
 end
 
-# Update stack can be outside of the to be updated system
-cmd = "zypper " +
-      (options[:non_interactive] ? "--non-interactive " : "") +
-      (options[:verbose] ? "--verbose " : "") +
-      (options[:quiet] ? "--quiet " : "") +
-      "patch-check --updatestack-only"
-print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
-if !system cmd
-  if $?.exitstatus >= 100
-    # install pending updates and restart
-    cmd = "zypper " +
-          (options[:non_interactive] ? "--non-interactive " : "") +
-          (options[:verbose] ? "--verbose " : "") +
-          (options[:quiet] ? "--quiet " : "") +
-          "--no-refresh patch --updatestack-only"
-    print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
-    system cmd
+if options[:selfupdate]
+  # Update stack can be outside of the to be updated system
+  cmd = "zypper " +
+        (options[:non_interactive] ? "--non-interactive " : "") +
+        (options[:verbose] ? "--verbose " : "") +
+        (options[:quiet] ? "--quiet " : "") +
+        "patch-check --updatestack-only"
+  print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
+  if !system cmd
+    if $?.exitstatus >= 100
+      # install pending updates and restart
+      cmd = "zypper " +
+            (options[:non_interactive] ? "--non-interactive " : "") +
+            (options[:verbose] ? "--verbose " : "") +
+            (options[:quiet] ? "--quiet " : "") +
+            "--no-refresh patch --updatestack-only"
+      print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
+      system cmd
 
-    # stop infinite restarting
-    # check that the patches were really installed
-    cmd = "zypper " +
-      (options[:root] ? "--root #{options[:root]} " : "") +
-      "--non-interactive --quiet --no-refresh patch-check --updatestack-only > /dev/null"
-    if ! system cmd
-      print "patch failed, exiting.\n"
-      exit 1
+      # stop infinite restarting
+      # check that the patches were really installed
+      cmd = "zypper " +
+        (options[:root] ? "--root #{options[:root]} " : "") +
+        "--non-interactive --quiet --no-refresh patch-check --updatestack-only > /dev/null"
+      if ! system cmd
+        print "patch failed, exiting.\n"
+        exit 1
+      end
+
+      print "\nRestarting the migration script...\n" unless options[:quiet]
+      exec $0, *save_argv
     end
-
-    print "\nRestarting the migration script...\n" unless options[:quiet]
-    exec $0, *save_argv
+    exit 1
   end
-  exit 1
 end
 print "\n" unless options[:quiet]
 
