@@ -99,6 +99,13 @@ def zypp_restore()
   system "sh /var/adm/backup/system-upgrade/repos.sh >/dev/null"
 end
 
+def check_if_param(opt, message)
+  unless opt
+    print message
+    exit 1
+  end
+end
+
 
 options = {
     :allow_vendor_change => false,
@@ -117,6 +124,9 @@ options = {
     :details => false,
     :download => nil,
     :no_snapshots => false,
+    :to_product => nil,
+    :break_my_system => false,
+    :selfupdate => true,
     :root => nil
 }
 
@@ -199,6 +209,22 @@ OptionParser.new do |opts|
     options[:no_snapshots] = true
   end
 
+  opts.on("--break-my-system", "For testing and debugging purpose only.") do
+    options[:break_my_system] = true
+  end
+
+  opts.on("--product PRODUCT", "Specify a product to which the system should be upgraded in offline mode.",
+          "Format: <name>/<version>/<architecture>") do |p|
+    check_if_param(p, 'Please provide a product identifier')
+    check_if_param((p =~ /\S+\/\S+\/\S+/), 'Please provide the product identifier in this format: ' \
+                   '<internal name>/<version>/<architecture>.')
+    options[:to_product] = p
+  end
+
+  opts.on("--[no-]selfupdate", "Do not update the update stack first") do |s|
+    options[:selfupdate] = s
+  end
+
   opts.on("--root DIR", "Operate on a different root directory") do |r|
     options[:root] = r
     SUSE::Connect::System.filesystem_root = r
@@ -208,38 +234,45 @@ OptionParser.new do |opts|
 
 end.parse!
 
-# Update stack can be outside of the to be updated system
-cmd = "zypper " +
-      (options[:non_interactive] ? "--non-interactive " : "") +
-      (options[:verbose] ? "--verbose " : "") +
-      (options[:quiet] ? "--quiet " : "") +
-      "patch-check --updatestack-only"
-print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
-if !system cmd
-  if $?.exitstatus >= 100
-    # install pending updates and restart
-    cmd = "zypper " +
-          (options[:non_interactive] ? "--non-interactive " : "") +
-          (options[:verbose] ? "--verbose " : "") +
-          (options[:quiet] ? "--quiet " : "") +
-          "--no-refresh patch --updatestack-only"
-    print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
-    system cmd
-
-    # stop infinite restarting
-    # check that the patches were really installed
-    cmd = "zypper " +
-      (options[:root] ? "--root #{options[:root]} " : "") +
-      "--non-interactive --quiet --no-refresh patch-check --updatestack-only > /dev/null"
-    if ! system cmd
-      print "patch failed, exiting.\n"
-      exit 1
-    end
-
-    print "\nRestarting the migration script...\n" unless options[:quiet]
-    exec $0, *save_argv
-  end
+if options[:to_product] && !options[:root] && !options[:break_my_system]
+  print "The --product option can only be used together with the --root option\n"
   exit 1
+end
+
+if options[:selfupdate]
+  # Update stack can be outside of the to be updated system
+  cmd = "zypper " +
+        (options[:non_interactive] ? "--non-interactive " : "") +
+        (options[:verbose] ? "--verbose " : "") +
+        (options[:quiet] ? "--quiet " : "") +
+        "patch-check --updatestack-only"
+  print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
+  if !system cmd
+    if $?.exitstatus >= 100
+      # install pending updates and restart
+      cmd = "zypper " +
+            (options[:non_interactive] ? "--non-interactive " : "") +
+            (options[:verbose] ? "--verbose " : "") +
+            (options[:quiet] ? "--quiet " : "") +
+            "--no-refresh patch --updatestack-only"
+      print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
+      system cmd
+
+      # stop infinite restarting
+      # check that the patches were really installed
+      cmd = "zypper " +
+        (options[:root] ? "--root #{options[:root]} " : "") +
+        "--non-interactive --quiet --no-refresh patch-check --updatestack-only > /dev/null"
+      if ! system cmd
+        print "patch failed, exiting.\n"
+        exit 1
+      end
+
+      print "\nRestarting the migration script...\n" unless options[:quiet]
+      exec $0, *save_argv
+    end
+    exit 1
+  end
 end
 print "\n" unless options[:quiet]
 
@@ -297,11 +330,26 @@ if system_products.length == 0
   exit 1
 end
 
-begin
-  migrations_all = SUSE::Connect::YaST.system_migrations system_products
-rescue => e
-  print "Can't get available migrations from server: #{e.class}: #{e.message}\n"
-  exit 1
+if options[:to_product]
+  begin
+    identifier, version, arch = options[:to_product].split('/')
+    new_product = OpenStruct.new(
+                                 identifier: identifier,
+                                 version:   version,
+                                 arch:       arch
+                                 )
+    migrations_all = SUSE::Connect::YaST.system_offline_migrations(system_products, new_product)
+  rescue => e
+    print "Can't get available migrations from server: #{e.class}: #{e.message}\n"
+    exit 1
+  end
+else
+  begin
+    migrations_all = SUSE::Connect::YaST.system_migrations system_products
+  rescue => e
+    print "Can't get available migrations from server: #{e.class}: #{e.message}\n"
+    exit 1
+  end
 end
 
 #preprocess the migrations lists

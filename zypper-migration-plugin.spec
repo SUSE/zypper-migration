@@ -19,7 +19,7 @@ Name:           zypper-migration-plugin
 Version:        0.11
 URL:            https://github.com/SUSE/zypper-migration
 Release:        0
-Requires:       rubygem(%{rb_default_ruby_abi}:suse-connect) >= 0.2.24
+Requires:       rubygem(%{rb_default_ruby_abi}:suse-connect) >= 0.3.10
 Requires:       zypper >= 1.11.38
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 BuildRequires:  ruby-macros >= 5
