@@ -386,6 +386,10 @@ end
 
 if migrations.length == 0
   print "No migration available.\n\n" unless options[:quiet]
+  if migrations_unavailable.length > 0
+    # no need to print a msg - unavailable migrations are listed above
+    exit 1
+  end
   exit 0
 end
 
