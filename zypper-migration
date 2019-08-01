@@ -106,6 +106,31 @@ def check_if_param(opt, message)
   end
 end
 
+def get_available_services_based_on_url
+  url = SUSE::Connect::Config.new().url
+  url = "suse.com" if url.nil?
+
+  SUSE::Connect::Zypper::services.select do |service|
+    service if service[:url].include?(url) || service[:url].include?("plugin:/susecloud") || service[:url].include?("plugin:susecloud") || service[:url].include?("susecloud.net")
+  end
+end
+
+def update_services_no_path(services, current_service)
+  # remove from the services array the services with a migration path
+  # the remaining services in the array has no migration path
+  service_index = services.index { |serv| serv[:name] == current_service[:name] }
+  unless service_index.nil?
+    services.delete_at(service_index)
+  end
+end
+
+def remove_services_no_migration_path(services, verbose)
+  services.each do |service|
+    # remove services which do not have an offline migration path
+    print "Removing service #{service[:name]}.\n" if verbose
+    SUSE::Connect::Migration::remove_service service[:name]
+  end
+end
 
 options = {
     :allow_vendor_change => false,
@@ -453,10 +478,14 @@ begin
 
   raise "Interrupted." if interrupted
 
+  filtered_services = get_available_services_based_on_url
+
   migration.each do |p|
     msg = "Upgrading product #{p.friendly_name}"
     print "#{msg}.\n" unless options[:quiet]
     service = SUSE::Connect::YaST.upgrade_product p
+
+    update_services_no_path(filtered_services, service)
 
     unless service[:obsoleted_service_name].empty?
       msg = "Removing service #{service[:obsoleted_service_name]}"
@@ -490,6 +519,8 @@ begin
         end
       end
     end
+
+    remove_services_no_migration_path(filtered_services, options[:verbose])
 
     msg = "Adding service #{service[:name]}"
     print "#{msg}.\n" if options[:verbose]
