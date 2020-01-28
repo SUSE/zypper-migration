@@ -99,6 +99,10 @@ def zypp_restore()
   system "sh /var/adm/backup/system-upgrade/repos.sh >/dev/null"
 end
 
+def snapper_configured?
+  system "/usr/bin/snapper --no-dbus list-configs 2>/dev/null | grep -q \"^root \""
+end
+
 def check_if_param(opt, message)
   unless opt
     print message
@@ -233,6 +237,12 @@ OptionParser.new do |opts|
   end
 
 end.parse!
+
+if !snapper_configured?
+  options[:no_snapshots] = true
+  print "Snapper not configured\n" if options[:verbose]
+end
+
 
 if options[:to_product] && !options[:root] && !options[:break_my_system]
   print "The --product option can only be used together with the --root option\n"
