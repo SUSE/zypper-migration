@@ -592,6 +592,29 @@ if !options[:no_snapshots] && pre_snapshot_num > 0
 #  end
 end
 
+# make sure all release packages are installed (bsc#1171652)
+if result
+  begin
+    system_products = SUSE::Connect::Migration::system_products
+
+    system_products.each do |ident|
+      begin
+        # if a release package for registered product is missing -> try install it
+        SUSE::Connect::Migration.install_release_package(ident.identifier)
+      rescue => e
+        print "Can't install release package for registered product #{ident.identifier}\n" unless options[:quiet]
+        print "#{e.class}: #{e.message}\n" unless options[:quiet]
+      end
+    end
+  rescue => e
+    print "Can't determine the list of products installed after migration: #{e.class}: #{e.message}\n"
+    # the system has been sucessfully upgraded, zypper reported no error so
+    # the only way to get here is a scc problem - it is better to just exit
+    #
+    exit 1
+  end
+end
+
 if !result
   print "\nPerforming repository rollback...\n" unless options[:quiet]
   begin
