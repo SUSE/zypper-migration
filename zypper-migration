@@ -463,6 +463,16 @@ begin
 
   raise "Interrupted." if interrupted
 
+
+  if system_products.detect { |p| p.identifier == "Leap" } &&
+     migration.detect { |p| p.identifier == "SLES" }
+     # bsc#1184237
+     print "Migration from Leap to SLES - disabling old repositories\n" unless options[:quiet]
+     SUSE::Connect::Migration::repositories.each do |repo|
+         SUSE::Connect::Migration::disable_repository repo[:name] if repo[:enabled] != 0
+     end
+  end
+
   migration.each do |p|
     msg = "Upgrading product #{p.friendly_name}"
     print "#{msg}.\n" unless options[:quiet]
