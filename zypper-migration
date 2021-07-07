@@ -110,6 +110,42 @@ def check_if_param(opt, message)
   end
 end
 
+def products_restore(paths)
+  # while running zypper-migration, one use case can lead to
+  # migrate from distribution [A] to [B] where A is different of B.
+  # This can lead to a scenario where, during that migration, a mismatch
+  # is produced due to this difference between distributions, making
+  # the migration to fail every time. To avoid that, there is an approach
+  # where the products information is backed up in src
+  # and restored if failed before rolling back in this plugin.
+  src = paths.split(':')[0]
+  if File.exist?(src) and File.directory?(src)
+    dst = paths.split(':')[1]
+    system "rsync -av --remove-source-files #{src} #{dst} && rm -rf #{src}"
+  end
+end
+
+def has_failed?(exit_status)
+  # In zypper any return code == 0 or >= 100 is considered success.
+  # Any return code different from 0 and < 100 is treated as an
+  # error we care for. Return codes >= 100 indicates an issue
+  # like 'new kernel needs reboot of the system' or similar which
+  # cam be ignored in the scope of migrating
+  failed =
+    if exit_status == 104 || exit_status == 105 || exit_status == 106
+      # Treat the following exit codes as error
+      # 104 - ZYPPER_EXIT_INF_CAP_NOT_FOUND
+      # 105 - ZYPPER_EXIT_ON_SIGNAL
+      # 106 - ZYPPER_EXIT_INF_REPOS_SKIPPED
+      true
+    elsif exit_status == 0 || exit_status >= 100
+      false
+    else
+      true
+    end
+
+  return failed
+end
 
 options = {
     :allow_vendor_change => false,
@@ -129,9 +165,12 @@ options = {
     :download => nil,
     :no_snapshots => false,
     :to_product => nil,
+    :gpg_auto_import_keys => false,
     :break_my_system => false,
     :selfupdate => true,
-    :root => nil
+    :root => nil,
+    :strict_errors_dist_migration => false,
+    :restore_products => nil
 }
 
 STDOUT.sync = true
@@ -225,6 +264,10 @@ OptionParser.new do |opts|
     options[:to_product] = p
   end
 
+  opts.on("--gpg-auto-import-keys", "Trust and import any new repository signing key.") do
+    options[:gpg_auto_import_keys] = true
+  end
+
   opts.on("--[no-]selfupdate", "Do not update the update stack first") do |s|
     options[:selfupdate] = s
   end
@@ -236,6 +279,13 @@ OptionParser.new do |opts|
     options[:no_snapshots] = true
   end
 
+  opts.on("--strict-errors-dist-migration", "Handle only breaking distro migration errors") do
+    options[:strict_errors_dist_migration] = true
+  end
+
+  opts.on("--restore-products SRC:DST", "Restore product information.") do |r|
+    options[:restore_products] = r
+  end
 end.parse!
 
 if !snapper_configured?
@@ -292,6 +342,7 @@ cmd = "zypper " +
       (options[:non_interactive] ? "--non-interactive " : "") +
       (options[:verbose] ? "--verbose " : "") +
       (options[:quiet] ? "--quiet " : "") +
+      (options[:gpg_auto_import_keys] ? "--gpg-auto-import-keys ": "") +
       " refresh"
 print "\nExecuting '#{cmd}'\n\n" unless options[:quiet]
 if !system cmd
@@ -554,6 +605,7 @@ begin
   msg = "Executing '#{cmd}'"
   print "\n#{msg}\n\n" unless options[:quiet]
   result = system cmd
+  result = true if !result && options[:strict_errors_dist_migration] && !has_failed?($?.exitstatus)
   fs_inconsistent = true if $?.exitstatus == 8
   raise "Interrupted." if interrupted
 
@@ -628,6 +680,7 @@ end
 if !result
   print "\nPerforming repository rollback...\n" unless options[:quiet]
   begin
+    products_restore(options[:restore_products]) unless !options[:restore_products]
     # restore repo configuration from backup file
     zypp_restore
     ret = SUSE::Connect::Migration.rollback
