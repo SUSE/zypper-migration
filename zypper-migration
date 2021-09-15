@@ -95,8 +95,8 @@ def zypp_backup(root)
   create_restore_script(script_path, tarball_path, paths)
 end
 
-def zypp_restore()
-  system "sh /var/adm/backup/system-upgrade/repos.sh >/dev/null"
+def zypp_restore(root)
+  system "sh /var/adm/backup/system-upgrade/repos.sh '#{root}' >/dev/null"
 end
 
 def snapper_configured?
@@ -629,7 +629,7 @@ if !result
   print "\nPerforming repository rollback...\n" unless options[:quiet]
   begin
     # restore repo configuration from backup file
-    zypp_restore
+    zypp_restore(options[:root] ? options[:root]: "/")
     ret = SUSE::Connect::Migration.rollback
     print "Rollback successful.\n" unless options[:quiet]
   rescue => e
