@@ -271,7 +271,6 @@ if options[:selfupdate]
       # stop infinite restarting
       # check that the patches were really installed
       cmd = "zypper " +
-        (options[:root] ? "--root #{options[:root]} " : "") +
         "--non-interactive --quiet --no-refresh patch-check --updatestack-only > /dev/null"
       if ! system cmd
         print "patch failed, exiting.\n"
